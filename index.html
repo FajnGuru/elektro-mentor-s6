@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElektroMentor § 6 — Cvičný kvíz + Průvodce</title>
+<style>
+:root {
+  --bg: #0f1419;
+  --card: #1a2332;
+  --accent: #3b82f6;
+  --accent2: #f59e0b;
+  --success: #10b981;
+  --danger: #ef4444;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --border: #374151;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+header {
+  background: linear-gradient(135deg, #1e3a8a, #1e40af);
+  padding: 1.5rem 2rem;
+  border-bottom: 3px solid var(--accent2);
+}
+header h1 { font-size: 1.8rem; font-weight: 700; }
+header p { color: #bfdbfe; margin-top: 0.3rem; font-size: 0.95rem; }
+nav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: #111827;
+  border-bottom: 1px solid var(--border);
+}
+nav button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+nav button.active, nav button:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+main { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+.progress {
+  height: 8px;
+  background: #374151;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  width: 0%;
+  transition: width 0.3s;
+}
+.question { font-size: 1.15rem; font-weight: 600; margin-bottom: 1.2rem; }
+.options { display: flex; flex-direction: column; gap: 0.6rem; }
+.option {
+  background: #111827;
+  border: 2px solid var(--border);
+  padding: 0.9rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+.option:hover { border-color: var(--accent); }
+.option.correct { background: #065f46; border-color: var(--success); }
+.option.wrong { background: #7f1d1d; border-color: var(--danger); }
+.option.disabled { pointer-events: none; opacity: 0.7; }
+.explanation {
+  margin-top: 1.2rem;
+  padding: 1rem;
+  background: #1e293b;
+  border-left: 4px solid var(--accent2);
+  border-radius: 0 8px 8px 0;
+  display: none;
+}
+.explanation.show { display: block; }
+.explanation h4 { color: var(--accent2); margin-bottom: 0.4rem; }
+.controls {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+}
+button.primary {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 0.7rem 1.4rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.7rem 1.4rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.score-box {
+  text-align: center;
+  padding: 2rem;
+}
+.score-box h2 { font-size: 2.5rem; color: var(--accent2); }
+.guide-item {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.guide-item:last-child { border: none; }
+.guide-item h3 { color: var(--accent); margin-bottom: 0.4rem; }
+.simple { color: #a7f3d0; font-style: italic; margin-top: 0.4rem; }
+footer {
+  text-align: center;
+  padding: 2rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
+  margin-top: 3rem;
+}
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ ElektroMentor § 6</h1>
+  <p>Interaktivní cvičný kvíz + průvodce pro zkoušky elektrotechniků podle NV č. 194/2022 Sb. a norem ČSN</p>
+</header>
+
+<nav>
+  <button class="active" onclick="showSection('kviz')">📝 Cvičný kvíz</button>
+  <button onclick="showSection('pruvodce')">📖 Průvodce pojmů</button>
+  <button onclick="showSection('o')">ℹ️ O aplikaci</button>
+</nav>
+
+<main>
+  <!-- KVÍZ -->
+  <div id="kviz" class="section">
+    <div class="card">
+      <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+      <div id="quizContent"></div>
+    </div>
+  </div>
+
+  <!-- PRŮVODCE -->
+  <div id="pruvodce" class="section hidden">
+    <div class="card">
+      <h2 style="margin-bottom:1rem;">Průvodce klíčovými pojmy</h2>
+      <p style="margin-bottom:1.5rem;color:var(--muted);">Aplikace převádí složité právní a technické pojmy do srozumitelného jazyka.</p>
+
+      <div class="guide-item">
+        <h3>Elektrotechnik (§ 6 NV 194/2022 Sb.)</h3>
+        <p><strong>Právní definice:</strong> Osoba s odbornou kvalifikací podle § 2 písm. a) zákona č. 250/2021 Sb., která po zaškolení složila zkoušku z odborné způsobilosti k výkonu činností v elektrotechnice ve stanoveném rozsahu.</p>
+        <p class="simple">Jednoduše: To je elektrikář, který smí pracovat sám (bez dozoru) na elektrických zařízeních v rozsahu, který má napsaný v osvědčení. Musí mít školu + praxi + složenou zkoušku.</p>
+      </div>
+
+      <div class="guide-item">
+        <h3>Samostatná činnost</h3>
+        <p>Elektrotechnik vykonává činnosti (obsluhu, montáž, servis a opravu) na elektrických zařízeních a v jejich blízkosti <strong>samostatně</strong>, s výjimkou zvláštních případů vycházejících z hodnocení rizik.</p>
+        <p class="simple">Jednoduše: Normálně může pracovat sám. Jen když je riziko mimořádně vysoké, musí mít dohled nebo dozor podle místního předpisu.</p>
+      </div>
+
+      <div class="guide-item">
+        <h3>Minimální odborná praxe</h3>
+        <p>Stanoví ji odpovědná osoba v souladu s hodnocením rizik jednotlivých činností, a to <strong>místním provozním bezpečnostním předpisem</strong>. Pro osoby bez elektrotechnické praxe se stanoví dohled osoby znalé s praxí min. 2 roky po dobu nejméně 1 roku.</p>
+        <p class="simple">Jednoduše: Není to stejné pro všechny. Šéf (odpovědná osoba) rozhodne podle toho, jak nebezpečná je konkrétní práce, kolik praxe potřebuješ. Začátečník musí rok pracovat pod dohledem zkušeného.</p>
+      </div>
+
+      <div class="guide-item">
+        <h3>Zkouška z odborné způsobilosti</h3>
+        <p>Skládá se z: a) písemného testu o minimálně 10 otázkách a b) ústního pohovoru zaměřeného na výsledek testu, odbornou problematiku, postupy a rizika.</p>
+        <p class="simple">Jednoduše: Nejprve písemný test (min. 10 otázek), pak ústní. K ústní části se dostaneš jen když test projdeš. Musíš mít aspoň 80 %.</p>
+      </div>
+
+      <div class="guide-item">
+        <h3>Rozsah dokladu</h3>
+        <p>Stanovuje se podle rozsahu napětí (do 1 kV AC / 1,5 kV DC, nebo bez omezení) a druhu zařízení (objekty bez nebezpečí výbuchu / s nebezpečím výbuchu). Komise může rozsah omezit.</p>
+        <p class="simple">Jednoduše: Osvědčení není univerzální. Říká, na jakém napětí a v jakém prostředí smíš pracovat. Může být omezené jen na nízké napětí a běžné prostory.</p>
+      </div>
+
+      <div class="guide-item">
+        <h3>ČSN EN 50110-1 (Obsluha a práce na elektrických zařízeních)</h3>
+        <p>Základní evropská norma pro bezpečnou práci na elektrických instalacích. Definuje pojmy jako dozor, dohled, ochranný prostor, zóna přiblížení, pracovní postupy.</p>
+        <p class="simple">Jednoduše: „Jak bezpečně pracovat na elektřině.“ Říká, kdo smí co dělat, jak se zajišťuje vypnutí, jaké vzdálenosti dodržovat.</p>
+      </div>
+
+      <div class="guide-item">
+        <h3>Osoba poučená (§ 4) vs. Elektrotechnik (§ 6)</h3>
+        <p>§ 4: může pracovat jen pod dohledem osoby znalé. § 6: může pracovat samostatně (s výjimkami z hodnocení rizik).</p>
+        <p class="simple">Jednoduše: Poučený = „smíš, ale někdo tě hlídá“. Elektrotechnik § 6 = „smíš sám“.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- O APLIKACI -->
+  <div id="o" class="section hidden">
+    <div class="card">
+      <h2>O aplikaci ElektroMentor § 6</h2>
+      <p style="margin:1rem 0;">Toto je <strong>demo verze</strong> interaktivní webové aplikace, která propojuje cvičný kvíz s průvodcem.</p>
+      <p>Aplikace převádí složité právní a technické pojmy z příručky pro zkoušky elektrotechniků (NV č. 194/2022 Sb. a normy ČSN) do srozumitelné podoby.</p>
+      <ul style="margin:1rem 0 1rem 1.5rem; line-height:1.8;">
+        <li>Cvičný kvíz s okamžitým vysvětlením</li>
+        <li>Průvodce klíčovými pojmy</li>
+        <li>Plně offline (stáhněte tento HTML soubor)</li>
+        <li>Zaměřeno na § 6 – Elektrotechnik</li>
+      </ul>
+      <p style="color:var(--muted);font-size:0.9rem;">Obsah vychází z veřejně dostupných informací o NV č. 194/2022 Sb., zákona č. 250/2021 Sb. a souvisejících norem (ČSN EN 50110-1, ČSN 33 2000-4-41 aj.). Nejde o oficiální zkušební otázky. Vždy ověřujte aktuální znění předpisů.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  ElektroMentor § 6 · Demo verze · NV č. 194/2022 Sb. · ČSN normy<br>
+  Vytvořeno jako výstup multi-bot spolupráce
+</footer>
+
+<script>
+const questions = [
+  {
+    q: "Kdo je elektrotechnik podle § 6 nařízení vlády č. 194/2022 Sb.?",
+    options: [
+      "Osoba poučená, která může pracovat jen pod dohledem",
+      "Osoba s odbornou kvalifikací, která po zaškolení složila zkoušku z odborné způsobilosti a smí vykonávat činnosti samostatně",
+      "Revizní technik provádějící revize",
+      "Laik, který prošel krátkým školením"
+    ],
+    correct: 1,
+    expl: "<strong>Elektrotechnik (§ 6)</strong> je osoba s odbornou kvalifikací (podle § 2 písm. a) zákona 250/2021 Sb.), která po zaškolení úspěšně složila zkoušku. Smí pracovat na elektrických zařízeních a v jejich blízkosti <em>samostatně</em>, s výjimkou zvláštních případů z hodnocení rizik."
+  },
+  {
+    q: "Jaké činnosti smí elektrotechnik podle § 6 vykonávat?",
+    options: [
+      "Jen obsluhu bez použití nástrojů",
+      "Obsluhu, montáž, servis a opravu na elektrických zařízeních a v jejich blízkosti samostatně (s výjimkami z hodnocení rizik)",
+      "Pouze práce pod napětím na vysokém napětí",
+      "Řízení provozu a projektování"
+    ],
+    correct: 1,
+    expl: "Elektrotechnik vykonává činnosti (obsluhu, montáž, servis a opravu) <strong>samostatně</strong>. Výjimky stanoví hodnocení rizik a místní provozní bezpečnostní předpis."
+  },
+  {
+    q: "Kdo stanoví minimální požadovanou odbornou praxi pro elektrotechnika § 6?",
+    options: [
+      "Ministerstvo práce a sociálních věcí jednotně pro celou ČR",
+      "Odpovědná osoba místním provozním bezpečnostním předpisem podle hodnocení rizik",
+      "Zkušební komise při zkoušce",
+      "Sám elektrotechnik"
+    ],
+    correct: 1,
+    expl: "Minimální praxi stanoví <strong>odpovědná osoba</strong> v souladu s hodnocením rizik jednotlivých činností, a to místním provozním bezpečnostním předpisem. Pro osoby bez praxe se stanoví dohled osoby znalé (praxe min. 2 roky) po dobu nejméně 1 roku."
+  },
+  {
+    q: "Z čeho se skládá zkouška z odborné způsobilosti podle NV 194/2022 Sb.?",
+    options: [
+      "Pouze ústního pohovoru",
+      "Písemného testu minimálně 10 otázek + ústního pohovoru",
+      "Jen praktické ukázky práce",
+      "Online testu bez komise"
+    ],
+    correct: 1,
+    expl: "Zkouška se skládá ze dvou částí: a) písemného testu o <strong>minimálně 10 otázkách</strong> a b) ústního pohovoru zaměřeného na výsledek testu, odbornou problematiku, postupy a rizika. K ústní části se přistupuje jen po úspěšném testu."
+  },
+  {
+    q: "Jaký je typický rozsah napětí u dokladu elektrotechnika § 6?",
+    options: [
+      "Vždy bez omezení napětí",
+      "Do 1 kV střídavého nebo 1,5 kV stejnosměrného, nebo bez omezení (podle dokladu)",
+      "Jen malé napětí do 50 V",
+      "Pouze vysoké napětí"
+    ],
+    correct: 1,
+    expl: "Rozsah se stanovuje podle napětí: 1) do 1 kV AC nebo 1,5 kV DC, nebo 2) bez omezení napětí. A dále podle prostředí (s/bez nebezpečí výbuchu). Komise může rozsah omezit podle skutečně prováděných činností."
+  },
+  {
+    q: "Jaký je hlavní rozdíl mezi osobou poučenou (§ 4) a elektrotechnikem (§ 6)?",
+    options: [
+      "Žádný rozdíl",
+      "Osoba poučená může pracovat samostatně, elektrotechnik jen pod dohledem",
+      "Osoba poučená pracuje s dohledem osoby znalé, elektrotechnik § 6 smí pracovat samostatně",
+      "Oba smí provádět revize"
+    ],
+    correct: 2,
+    expl: "<strong>§ 4 Osoba poučená</strong> – smí pracovat jen s dohledem osoby znalé.<br><strong>§ 6 Elektrotechnik</strong> – smí vykonávat činnosti samostatně (s výjimkami z hodnocení rizik)."
+  },
+  {
+    q: "Jaké je jmenovité napětí střídavých rozvodných sítí v ČR?",
+    options: [
+      "110/190 V",
+      "230/400 V",
+      "400/690 V",
+      "50/120 V"
+    ],
+    correct: 1,
+    expl: "Jmenovité napětí střídavých rozvodných sítí v ČR je <strong>230/400 V</strong>."
+  },
+  {
+    q: "Jaká barva bezpečnostních tabulek výstrahy je správná?",
+    options: [
+      "Červená",
+      "Žlutá",
+      "Modrá",
+      "Zelená"
+    ],
+    correct: 1,
+    expl: "Barva bezpečnostních tabulek <strong>výstrahy je žlutá</strong>. Zákazu červená, příkazu modrá, informační zelená."
+  },
+  {
+    q: "Obvody SELV nesmí být:",
+    options: [
+      "Napájeny z bezpečnostního transformátoru",
+      "Spojeny se zemí",
+      "Použity pro malé napětí",
+      "Odděleny od jiných obvodů"
+    ],
+    correct: 1,
+    expl: "Obvody <strong>SELV nesmí být spojeny se zemí</strong>. (Na rozdíl od PELV, které jsou uzemněné.)"
+  },
+  {
+    q: "Jaká frekvence stlačení se doporučuje při nepřímé srdeční masáži?",
+    options: [
+      "60–80 za minutu",
+      "100–120 za minutu",
+      "40–60 za minutu",
+      "150–180 za minutu"
+    ],
+    correct: 1,
+    expl: "Nepřímá srdeční masáž má být prováděna s frekvencí asi <strong>100–120 stlačení za minutu</strong>. Poměr je 30 stlačení : 2 vdechy."
+  },
+  {
+    q: "Co udává první číslice v označení stupně krytí IP?",
+    options: [
+      "Ochrana před vodou",
+      "Stupeň ochrany před vniknutím cizích pevných těles a před dotykem nebezpečných částí",
+      "Ochrana před prachem",
+      "Mechanická odolnost"
+    ],
+    correct: 1,
+    expl: "První číslice IP udává <strong>stupeň ochrany před vniknutím cizích pevných těles a před dotykem nebezpečných částí</strong>. Druhá číslice udává ochranu před vodou."
+  },
+  {
+    q: "Při práci s dohledem odpovídá za dodržování bezpečnostních předpisů:",
+    options: [
+      "Pouze osoba dozírající",
+      "Osoba provádějící činnost",
+      "Vždy zaměstnavatel",
+      "Nikdo"
+    ],
+    correct: 1,
+    expl: "Při práci <strong>s dohledem</strong> odpovídá za dodržování bezpečnostních předpisů osoba provádějící činnost. Při práci <strong>pod dozorem</strong> odpovídá osoba dozírající."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function renderQuestion() {
+  const q = questions[current];
+  const progress = (current / questions.length) * 100;
+  document.getElementById('progressBar').style.width = progress + '%';
+
+  let html = `<div class="question">${current + 1}. ${q.q}</div><div class="options">`;
+  q.options.forEach((opt, i) => {
+    html += `<button class="option" onclick="selectOption(${i})">${opt}</button>`;
+  });
+  html += `</div><div class="explanation" id="expl"></div>
+    <div class="controls">
+      <button class="secondary" onclick="prev()" ${current === 0 ? 'disabled' : ''}>← Zpět</button>
+      <button class="primary" id="nextBtn" onclick="next()" disabled>Další →</button>
+    </div>`;
+  document.getElementById('quizContent').innerHTML = html;
+  answered = false;
+}
+
+function selectOption(i) {
+  if (answered) return;
+  answered = true;
+  const q = questions[current];
+  const options = document.querySelectorAll('.option');
+  options.forEach(o => o.classList.add('disabled'));
+  options[i].classList.add(i === q.correct ? 'correct' : 'wrong');
+  options[q.correct].classList.add('correct');
+  if (i === q.correct) score++;
+
+  const expl = document.getElementById('expl');
+  expl.innerHTML = `<h4>Vysvětlení</h4>${q.expl}`;
+  expl.classList.add('show');
+  document.getElementById('nextBtn').disabled = false;
+}
+
+function next() {
+  if (current < questions.length - 1) {
+    current++;
+    renderQuestion();
+  } else {
+    showResult();
+  }
+}
+
+function prev() {
+  if (current > 0) {
+    current--;
+    renderQuestion();
+  }
+}
+
+function showResult() {
+  const percent = Math.round((score / questions.length) * 100);
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('quizContent').innerHTML = `
+    <div class="score-box">
+      <h2>${score} / ${questions.length}</h2>
+      <p style="font-size:1.3rem;margin:1rem 0;">Úspěšnost: ${percent} %</p>
+      <p>${percent >= 80 ? 'Výborně! Jste na dobré cestě ke zkoušce.' : percent >= 60 ? 'Dobré, ale ještě je co zlepšovat. Projděte si Průvodce.' : 'Doporučujeme zopakovat si klíčové pojmy v Průvodci.'}</p>
+      <button class="primary" style="margin-top:1.5rem;" onclick="restart()">Zkusit znovu</button>
+    </div>`;
+}
+
+function restart() {
+  current = 0;
+  score = 0;
+  renderQuestion();
+}
+
+// Start
+renderQuestion();
+</script>
+</body>
+</html>
