@@ -482,14 +482,28 @@ function getGuideText() {
 
 function toggleTTS() {
   const btn = document.getElementById("ttsBtn");
+  const nativeTts = (typeof window.ElektroMentorAndroid?.speak === "function") ? window.ElektroMentorAndroid : null;
   if (ttsPlaying) {
-    speechSynthesis.cancel();
+    if (nativeTts) { nativeTts.stop(); } else { speechSynthesis.cancel(); }
     ttsPlaying = false;
     btn.textContent = "🔊 Přečíst průvodce";
     return;
   }
   const text = getGuideText();
   if (!text) return;
+  if (nativeTts) {
+    // Android APK: WebView speechSynthesis nefunguje -> nativní TextToSpeech (cs-CZ).
+    window.onNativeTtsDone = () => {
+      ttsPlaying = false;
+      btn.textContent = "🔊 Přečíst průvodce";
+    };
+    const ok = nativeTts.speak(text, parseFloat(document.getElementById("ttsRate").value) || 1.0);
+    if (ok) {
+      ttsPlaying = true;
+      btn.textContent = "⏹ Zastavit";
+    }
+    return;
+  }
   speechSynthesis.cancel();
   ttsUtterance = new SpeechSynthesisUtterance(text);
   ttsUtterance.lang = "cs-CZ";
