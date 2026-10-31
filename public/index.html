@@ -174,6 +174,14 @@ footer {
       <h2 style="margin-bottom:1rem;">Průvodce klíčovými pojmy</h2>
       <p style="margin-bottom:1.5rem;color:var(--muted);">Aplikace převádí složité právní a technické pojmy do srozumitelného jazyka.</p>
 
+      <div style="display:flex; gap:0.75rem; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap;">
+        <button class="primary" id="ttsBtn" onclick="toggleTTS()">🔊 Přečíst průvodce</button>
+        <label style="color:var(--muted); font-size:0.9rem;">Rychlost: 
+          <input type="range" id="ttsRate" min="0.5" max="2" step="0.1" value="1" style="vertical-align:middle;">
+          <span id="ttsRateValue">1.0</span>×
+        </label>
+      </div>
+
       <div class="guide-item">
         <h3>Elektrotechnik (§ 6 NV 194/2022 Sb.)</h3>
         <p><strong>Právní definice:</strong> Osoba s odbornou kvalifikací podle § 2 písm. a) zákona č. 250/2021 Sb., která po zaškolení složila zkoušku z odborné způsobilosti k výkonu činností v elektrotechnice ve stanoveném rozsahu.</p>
@@ -457,6 +465,48 @@ function restart() {
 
 // Start
 renderQuestion();
+
+let ttsUtterance = null;
+let ttsPlaying = false;
+
+function updateRateLabel() {
+  const rate = document.getElementById("ttsRate").value;
+  document.getElementById("ttsRateValue").textContent = parseFloat(rate).toFixed(1);
+}
+document.getElementById("ttsRate")?.addEventListener("input", updateRateLabel);
+
+function getGuideText() {
+  const guide = document.getElementById("pruvodce");
+  return guide ? guide.innerText.replace(/🔊.*×/g, "").trim() : "";
+}
+
+function toggleTTS() {
+  const btn = document.getElementById("ttsBtn");
+  if (ttsPlaying) {
+    speechSynthesis.cancel();
+    ttsPlaying = false;
+    btn.textContent = "🔊 Přečíst průvodce";
+    return;
+  }
+  const text = getGuideText();
+  if (!text) return;
+  speechSynthesis.cancel();
+  ttsUtterance = new SpeechSynthesisUtterance(text);
+  ttsUtterance.lang = "cs-CZ";
+  ttsUtterance.rate = parseFloat(document.getElementById("ttsRate").value);
+  ttsUtterance.onend = () => {
+    ttsPlaying = false;
+    btn.textContent = "🔊 Přečíst průvodce";
+  };
+  ttsUtterance.onerror = () => {
+    ttsPlaying = false;
+    btn.textContent = "🔊 Přečíst průvodce";
+  };
+  ttsPlaying = true;
+  btn.textContent = "⏹ Zastavit";
+  speechSynthesis.speak(ttsUtterance);
+}
+
 </script>
 </body>
 </html>
