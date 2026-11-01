@@ -40,7 +40,8 @@ import {
 } from 'lucide-react';
 import {
   loadAllImages, putImage, deleteImage, requestPersist, storageEstimate,
-  exportFileName, guessKey, blobToDataUrl, mimeOf, isImageName, fmtMB
+  exportFileName, guessKey, blobToDataUrl, mimeOf, isImageName, fmtMB,
+  urlToBlob, versionKey, baseKey
 } from './imageStore';
 
 // ==========================================
@@ -578,7 +579,25 @@ export default function App() {
 
   const refreshStorage = () => { storageEstimate().then(setStorageInfo); };
 
+  // Krátké české hlášky (uloženo / staženo / import / chyba)
+  const [notice, setNotice] = useState<{ msg: string; ok: boolean } | null>(null);
+  const noticeTimer = React.useRef<any>(null);
+  const showNotice = (msg: string, ok = true) => {
+    setNotice({ msg, ok });
+    clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(null), ok ? 5000 : 9000);
+  };
+  // Aktuální obsah složky i v asynchronních funkcích (bez zastaralých closure)
+  const imagesRef = React.useRef<any>({});
+  useEffect(() => { imagesRef.current = generatedImages; }, [generatedImages]);
+  const countImages = (extra = 0) => Object.keys(imagesRef.current).length + extra;
+  const obr = (n: number) => `${n} ${n === 1 ? 'obrázek' : n >= 2 && n <= 4 ? 'obrázky' : 'obrázků'}`;
+
   const labelForKey = (key: string): string | null => {
+    if (key.includes('~')) {
+      const b = labelForKey(baseKey(key));
+      return b ? `${b} (starší verze)` : null;
+    }
     if (key === 'custom-mentor-img') return 'AI Mentor – vlastní ilustrace';
     if (key.startsWith('topic-')) {
       const t = STUDY_TOPICS.find((x) => `topic-${x.id}` === key);
@@ -617,17 +636,43 @@ export default function App() {
         fileName: meta.fileName || '', title: meta.title, mode: meta.mode,
         source: meta.source, createdAt: meta.createdAt
       });
-    } catch (e) {
-      setImportMsg('Uložení do zařízení selhalo (možná je plné úložiště).');
+      refreshStorage();
+      return true;
+    } catch (e: any) {
+      const why = e?.name === 'QuotaExceededError' ? 'v zařízení došlo místo' : (e?.message || 'neznámá chyba');
+      showNotice(`❌ Obrázek se nepodařilo uložit do složky ilustrací: ${why}.`, false);
+      refreshStorage();
+      return false;
     }
-    refreshStorage();
+  };
+
+  /**
+   * Uloží obrázek pod klíč. Je-li klíč obsazený, dosavadní obrázek se NEPŘEPÍŠE,
+   * ale přesune se na „starší verzi“ (klíč~čas) – ve složce zůstává vše.
+   */
+  const storeImage = async (key: string, blob: Blob, meta: any, entryUrl?: string) => {
+    const prev = imagesRef.current[key];
+    const updates: any = {};
+    if (prev) {
+      const oldKey = versionKey(key);
+      try {
+        const oldBlob = await urlToBlob(prev.url);
+        if (await saveRecord(oldKey, oldBlob, { ...prev, mime: oldBlob.type || prev.mime, source: prev.source || 'ai' }))
+          updates[oldKey] = { ...prev, id: oldKey };
+      } catch { /* starou verzi nešlo načíst – nový obrázek se uloží i tak */ }
+    }
+    const ok = await saveRecord(key, blob, meta);
+    updates[key] = { ...meta, id: key, url: entryUrl || URL.createObjectURL(blob), mime: blob.type || meta.mime };
+    imagesRef.current = { ...imagesRef.current, ...updates };
+    setGeneratedImages((p) => ({ ...p, ...updates }));
+    return ok;
   };
 
   const nowLabel = () => new Date().toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   // Import obrázků (a ZIP) – ukládají se ORIGINÁLY beze změny
   const handleImportFiles = async (fileList: FileList | null) => {
-    if (!fileList || !fileList.length) return;
+    if (!fileList || !fileList.length) { setImportMsg('Nevybrán žádný soubor.'); showNotice('Nevybrán žádný soubor.', false); return; }
     const items: { name: string; blob: Blob }[] = [];
     for (const f of Array.from(fileList)) {
       if (/\.zip$/i.test(f.name) || f.type === 'application/zip' || f.type === 'application/x-zip-compressed') {
@@ -645,11 +690,11 @@ export default function App() {
         items.push({ name: f.name, blob: f.type ? f : new Blob([f], { type: mimeOf(f.name) }) });
       }
     }
-    if (!items.length) { setImportMsg('Nebyl vybrán žádný obrázek.'); return; }
+    if (!items.length) { setImportMsg('Nevybrán žádný obrázek (ani ZIP s obrázky).'); showNotice('Nevybrán žádný obrázek.', false); return; }
     const quizIds = QUIZ_QUESTIONS.map((q) => q.id);
     const topicIds = STUDY_TOPICS.map((t) => t.id);
     let assigned = 0;
-    const added = {};
+    let failed = 0;
     for (let i = 0; i < items.length; i++) {
       const { name, blob } = items[i];
       const g = guessKey(name, quizIds, topicIds);
@@ -659,30 +704,33 @@ export default function App() {
         title: g?.titleHint || (g && labelForKey(g.key)) || name.replace(/\.[a-z0-9]+$/i, ''),
         mode: 'import', source: 'import', createdAt: nowLabel(), fileName: name, mime: blob.type
       };
-      await saveRecord(key, blob, meta);
-      added[key] = { id: key, url: URL.createObjectURL(blob), ...meta, mime: blob.type };
+      if (!(await storeImage(key, blob, meta))) failed++;
     }
-    setGeneratedImages((prev) => ({ ...prev, ...added }));
     const un = items.length - assigned;
-    setImportMsg(`Importováno ${items.length} obr.: ${assigned} přiřazeno automaticky podle názvu` +
-      (un ? `, ${un} čeká na ruční přiřazení (tlačítko „Přiřadit“).` : '.'));
+    const msg = `Importováno ${items.length}, přiřazeno ${assigned}, nepřiřazeno ${un}` +
+      (un ? ' (přiřadíš ikonou řetězu).' : '.') + (failed ? ` ⚠️ ${failed} se nepodařilo uložit.` : '');
+    setImportMsg(msg);
+    showNotice((failed ? '⚠️ ' : '✅ ') + msg, !failed);
   };
 
   // Ruční přiřazení obrázku k otázce / pojmu
   const assignImage = async (oldKey: string, newKey: string) => {
     const item = generatedImages[oldKey];
     if (!item || oldKey === newKey) { setAssignKey(null); return; }
-    const blob = await (await fetch(item.url)).blob();
+    let blob: Blob;
+    try { blob = await urlToBlob(item.url); } catch { showNotice('❌ Obrázek se nepodařilo načíst.', false); return; }
     const title = item.source === 'import' ? (labelForKey(newKey) || item.title) : item.title;
     const meta = { ...item, title, source: item.source || 'ai' };
-    await saveRecord(newKey, blob, meta);
+    if (!(await storeImage(newKey, blob, meta, item.url))) return;
     await deleteImage(oldKey).catch(() => {});
+    imagesRef.current = { ...imagesRef.current };
+    delete imagesRef.current[oldKey];
     setGeneratedImages((prev) => {
       const updated = { ...prev };
       delete updated[oldKey];
-      updated[newKey] = { ...meta, id: newKey };
       return updated;
     });
+    showNotice(`✅ Přiřazeno: ${labelForKey(newKey) || newKey}`);
     setAssignKey(null);
     setAssignQuery('');
   };
@@ -701,8 +749,8 @@ export default function App() {
       : null;
 
   // Pomocná funkce pro stažení obrázku přímo do zařízení
-  const downloadImageToDevice = (imageUrl, title = 'ilustrace', fileNameOverride?: string) => {
-    if (!imageUrl) return;
+  const downloadImageToDevice = async (imageUrl, title = 'ilustrace', fileNameOverride?: string, quiet = false) => {
+    if (!imageUrl) return false;
     const safeName = title
       .toLowerCase()
       .normalize('NFD')
@@ -713,6 +761,23 @@ export default function App() {
 
     const fileName = fileNameOverride || `elektromentor-p6-${safeName || 'obrazek'}.png`;
     const androidBridge = getAndroidBridge();
+    // v0.3.1: APK – vždy přes nativní most saveFile → Stažené/ElektroMentor, s výsledkem (cesta / chyba)
+    if (androidBridge && typeof androidBridge.saveFile === 'function') {
+      try {
+        const blob = await urlToBlob(imageUrl);
+        const dataUrl = await blobToDataUrl(blob);
+        const b64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+        const res = JSON.parse(androidBridge.saveFile(b64, fileName, blob.type || 'image/png') || '{}');
+        if (res.ok) {
+          if (!quiet) showNotice(`✅ Staženo: ${res.path || 'Stažené/ElektroMentor/' + fileName}`);
+          return true;
+        }
+        showNotice(`❌ Stažení selhalo: ${res.error || 'neznámá chyba'}`, false);
+      } catch (e: any) {
+        showNotice(`❌ Stažení selhalo: ${e?.message || e}`, false);
+      }
+      return false;
+    }
     if (androidBridge && typeof androidBridge.saveDataUrl === 'function' && imageUrl.startsWith('data:')) {
       androidBridge.saveDataUrl(imageUrl, fileName);
       return;
@@ -728,6 +793,8 @@ export default function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    if (!quiet) showNotice(`✅ Staženo: ${fileName} (složka Stažené v prohlížeči)`);
+    return true;
   };
 
   const fileNameFor = (key, img) => {
@@ -739,11 +806,20 @@ export default function App() {
   const downloadAllImages = () => {
     // Názvy {klíč}__{titulek}.{přípona originálu} → jdou naimportovat zpět se správným přiřazením
     const entries = Object.entries(generatedImages);
+    if (getAndroidBridge()?.saveFile) {
+      (async () => {
+        let ok = 0;
+        for (const [key, img] of entries as any) if (await downloadImageToDevice(img.url, img.title, fileNameFor(key, img), true)) ok++;
+        showNotice(ok === entries.length ? `✅ Staženo ${obr(ok)} do: Stažené/ElektroMentor` : `⚠️ Staženo ${ok} z ${obr(entries.length)} (Stažené/ElektroMentor)`, ok === entries.length);
+      })();
+      return;
+    }
     entries.forEach(([key, img], index) => {
       setTimeout(() => {
-        downloadImageToDevice(img.url, img.title, fileNameFor(key, img));
+        downloadImageToDevice(img.url, img.title, fileNameFor(key, img), true);
       }, index * 300);
     });
+    showNotice(`✅ Stahuji ${obr(entries.length)} do složky Stažené (prohlížeč)`);
   };
 
   // Odstranění jedné ilustrace ze složky
@@ -1000,23 +1076,17 @@ export default function App() {
         if (part && part.inlineData?.data) {
           const mimeType = part.inlineData.mimeType || 'image/png';
           const imageUrl = `data:${mimeType};base64,${part.inlineData.data}`;
-          const createdAtLabel = nowLabel();
-          fetch(imageUrl).then((res) => res.blob())
-            .then((blob) => saveRecord(id, blob, { title, mode, source: 'ai', createdAt: createdAtLabel, mime: mimeType }))
-            .catch(() => {});
-          setGeneratedImages((prev) => ({
-            ...prev,
-            [id]: {
-              id,
-              url: imageUrl,
-              title,
-              mode,
-              createdAt: new Date().toLocaleTimeString('cs-CZ', {
-                hour: '2-digit',
-                minute: '2-digit'
-              })
-            }
-          }));
+          let blob: Blob | null = null;
+          try { blob = await urlToBlob(imageUrl); } catch (e: any) {
+            showNotice(`❌ Obrázek se nepodařilo převést pro uložení: ${e?.message || e}`, false);
+          }
+          if (blob) {
+            const isNew = !imagesRef.current[id];
+            const ok = await storeImage(id, blob, { title, mode, source: 'ai', createdAt: nowLabel(), mime: mimeType }, imageUrl);
+            if (ok) showNotice(`✅ Uloženo do složky ilustrací (${obr(countImages())})` + (isNew ? '' : ' – předchozí verze zůstala ve složce'));
+          } else {
+            setGeneratedImages((prev) => ({ ...prev, [id]: { id, url: imageUrl, title, mode, createdAt: nowLabel() } }));
+          }
           setImageLoadingId(null);
           return;
         } else {
@@ -1358,6 +1428,15 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
       {/* HLAVNÍ OBSAH */}
       <main className="max-w-6xl mx-auto px-4 py-6 md:py-8">
         {/* MODÁLNÍ OKNO: SLOŽKA VŠECH ULOŽENÝCH ILUSTRACÍ */}
+        {notice && (
+          <div
+            role="status"
+            onClick={() => setNotice(null)}
+            className={`fixed left-1/2 -translate-x-1/2 bottom-24 z-[100] max-w-[92vw] px-4 py-3 rounded-xl shadow-2xl text-sm font-semibold border ${notice.ok ? 'bg-emerald-900/95 border-emerald-500 text-emerald-50' : 'bg-red-900/95 border-red-500 text-red-50'}`}
+          >
+            {notice.msg}
+          </div>
+        )}
         {isGalleryOpen && (
           <div
             onClick={() => setIsGalleryOpen(false)}
@@ -1380,6 +1459,9 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                     <p className="text-xs text-slate-400">
                       Všechny vygenerované vizuální taháky a schémata na jednom místě připravené ke stažení
                     </p>
+                    <p className="text-[11px] mt-0.5 text-sky-300">
+                      📁 Stažené soubory najdeš v: {getAndroidBridge() ? 'Stažené › ElektroMentor' : 'Stažené (složka prohlížeče)'}
+                    </p>
                     {storageInfo && storageInfo.quota > 0 && (
                       <p className={`text-[11px] mt-0.5 ${storageInfo.quota - storageInfo.usage < 50 * 1048576 || storageInfo.usage / storageInfo.quota > 0.85 ? 'text-amber-400 font-semibold' : 'text-slate-500'}`}>
                         Úložiště v zařízení: {fmtMB(storageInfo.usage)} z {fmtMB(storageInfo.quota)}
@@ -1398,6 +1480,8 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                     multiple
                     className="hidden"
                     onChange={(e) => { handleImportFiles(e.target.files); e.target.value = ''; }}
+                    // @ts-ignore – událost „cancel“ (zavření výběru bez souboru)
+                    onCancel={() => { setImportMsg('Nevybrán žádný soubor.'); showNotice('Nevybrán žádný soubor.', false); }}
                   />
                   <button
                     type="button"

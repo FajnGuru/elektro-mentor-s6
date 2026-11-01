@@ -114,3 +114,28 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 export const fmtMB = (b: number) => `${(b / 1048576).toFixed(b < 10485760 ? 1 : 0)} MB`;
+
+/** data:URL → Blob bez fetch() (spolehlivé i ve WebView). Bajty zůstávají beze změny. */
+export function dataUrlToBlob(dataUrl: string): Blob {
+  const comma = dataUrl.indexOf(',');
+  const meta = dataUrl.slice(5, comma);
+  const mime = meta.split(';')[0] || 'application/octet-stream';
+  const body = dataUrl.slice(comma + 1);
+  if (/;base64/i.test(meta)) {
+    const bin = atob(body);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+  return new Blob([decodeURIComponent(body)], { type: mime });
+}
+
+/** URL obrázku (data: nebo blob:) → Blob */
+export async function urlToBlob(url: string): Promise<Blob> {
+  if (url.startsWith('data:')) return dataUrlToBlob(url);
+  return (await fetch(url)).blob();
+}
+
+/** Klíč pro starší verzi obrázku (nic se nepřepisuje) */
+export const versionKey = (key: string) => `${key}~${Date.now()}`;
+export const baseKey = (key: string) => key.split('~')[0];
