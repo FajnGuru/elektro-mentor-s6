@@ -34,8 +34,14 @@ import {
   X,
   FolderOpen,
   Download,
-  Trash2
+  Trash2,
+  Upload,
+  Link2
 } from 'lucide-react';
+import {
+  loadAllImages, putImage, deleteImage, requestPersist, storageEstimate,
+  exportFileName, guessKey, blobToDataUrl, mimeOf, isImageName, fmtMB
+} from './imageStore';
 
 // ==========================================
 // POMOCNÉ FUNKCE PRO GEMINI TTS (PCM16 -> WAV)
@@ -563,6 +569,129 @@ export default function App() {
   const [lightboxImage, setLightboxImage] = useState(null);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [quizAiExplanations, setQuizAiExplanations] = useState({});
+  // Trvalá složka (IndexedDB, originální soubory) + import ze zařízení
+  const [storageInfo, setStorageInfo] = useState<{ usage: number; quota: number } | null>(null);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [assignKey, setAssignKey] = useState<string | null>(null);
+  const [assignQuery, setAssignQuery] = useState('');
+  const importInputRef = React.useRef<HTMLInputElement>(null);
+
+  const refreshStorage = () => { storageEstimate().then(setStorageInfo); };
+
+  const labelForKey = (key: string): string | null => {
+    if (key === 'custom-mentor-img') return 'AI Mentor – vlastní ilustrace';
+    if (key.startsWith('topic-')) {
+      const t = STUDY_TOPICS.find((x) => `topic-${x.id}` === key);
+      return t ? `Tahák: ${t.title}` : null;
+    }
+    if (key.startsWith('quiz-img-')) {
+      const q = QUIZ_QUESTIONS.find((x) => `quiz-img-${x.id}` === key);
+      return q ? `Otázka ${q.id}: ${q.question.slice(0, 70)}${q.question.length > 70 ? '…' : ''}` : null;
+    }
+    return null;
+  };
+
+  const storedToEntry = (rec) => ({
+    id: rec.key, url: URL.createObjectURL(rec.blob), title: rec.title, mode: rec.mode,
+    createdAt: rec.createdAt, mime: rec.mime, fileName: rec.fileName, source: rec.source
+  });
+
+  // Načtení uložené složky při startu + žádost o trvalé úložiště
+  useEffect(() => {
+    requestPersist();
+    loadAllImages()
+      .then((recs) => {
+        if (!recs || !recs.length) return;
+        const loaded = {};
+        recs.forEach((rec) => { loaded[rec.key] = storedToEntry(rec); });
+        setGeneratedImages((prev) => ({ ...loaded, ...prev }));
+      })
+      .catch(() => {})
+      .finally(refreshStorage);
+  }, []);
+
+  const saveRecord = async (key, blob, meta) => {
+    try {
+      await putImage({
+        key, blob, mime: blob.type || meta.mime || 'application/octet-stream',
+        fileName: meta.fileName || '', title: meta.title, mode: meta.mode,
+        source: meta.source, createdAt: meta.createdAt
+      });
+    } catch (e) {
+      setImportMsg('Uložení do zařízení selhalo (možná je plné úložiště).');
+    }
+    refreshStorage();
+  };
+
+  const nowLabel = () => new Date().toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  // Import obrázků (a ZIP) – ukládají se ORIGINÁLY beze změny
+  const handleImportFiles = async (fileList: FileList | null) => {
+    if (!fileList || !fileList.length) return;
+    const items: { name: string; blob: Blob }[] = [];
+    for (const f of Array.from(fileList)) {
+      if (/\.zip$/i.test(f.name) || f.type === 'application/zip' || f.type === 'application/x-zip-compressed') {
+        try {
+          const { unzipSync } = await import('fflate');
+          const files = unzipSync(new Uint8Array(await f.arrayBuffer()));
+          Object.entries(files).forEach(([name, data]) => {
+            if (!name.endsWith('/') && isImageName(name) && !/(^|\/)__MACOSX\//.test(name))
+              items.push({ name: name.replace(/^.*\//, ''), blob: new Blob([data], { type: mimeOf(name) }) });
+          });
+        } catch {
+          setImportMsg(`ZIP „${f.name}“ se nepodařilo rozbalit.`);
+        }
+      } else if (f.type.startsWith('image/') || isImageName(f.name)) {
+        items.push({ name: f.name, blob: f.type ? f : new Blob([f], { type: mimeOf(f.name) }) });
+      }
+    }
+    if (!items.length) { setImportMsg('Nebyl vybrán žádný obrázek.'); return; }
+    const quizIds = QUIZ_QUESTIONS.map((q) => q.id);
+    const topicIds = STUDY_TOPICS.map((t) => t.id);
+    let assigned = 0;
+    const added = {};
+    for (let i = 0; i < items.length; i++) {
+      const { name, blob } = items[i];
+      const g = guessKey(name, quizIds, topicIds);
+      const key = g ? g.key : `import-${Date.now()}-${i}`;
+      if (g) assigned++;
+      const meta = {
+        title: g?.titleHint || (g && labelForKey(g.key)) || name.replace(/\.[a-z0-9]+$/i, ''),
+        mode: 'import', source: 'import', createdAt: nowLabel(), fileName: name, mime: blob.type
+      };
+      await saveRecord(key, blob, meta);
+      added[key] = { id: key, url: URL.createObjectURL(blob), ...meta, mime: blob.type };
+    }
+    setGeneratedImages((prev) => ({ ...prev, ...added }));
+    const un = items.length - assigned;
+    setImportMsg(`Importováno ${items.length} obr.: ${assigned} přiřazeno automaticky podle názvu` +
+      (un ? `, ${un} čeká na ruční přiřazení (tlačítko „Přiřadit“).` : '.'));
+  };
+
+  // Ruční přiřazení obrázku k otázce / pojmu
+  const assignImage = async (oldKey: string, newKey: string) => {
+    const item = generatedImages[oldKey];
+    if (!item || oldKey === newKey) { setAssignKey(null); return; }
+    const blob = await (await fetch(item.url)).blob();
+    const title = item.source === 'import' ? (labelForKey(newKey) || item.title) : item.title;
+    const meta = { ...item, title, source: item.source || 'ai' };
+    await saveRecord(newKey, blob, meta);
+    await deleteImage(oldKey).catch(() => {});
+    setGeneratedImages((prev) => {
+      const updated = { ...prev };
+      delete updated[oldKey];
+      updated[newKey] = { ...meta, id: newKey };
+      return updated;
+    });
+    setAssignKey(null);
+    setAssignQuery('');
+  };
+
+  const assignTargets = [
+    ...STUDY_TOPICS.map((t) => ({ key: `topic-${t.id}`, label: `Tahák: ${t.title}` })),
+    ...QUIZ_QUESTIONS.map((q) => ({ key: `quiz-img-${q.id}`, label: `Otázka ${q.id}: ${q.question}` })),
+    { key: 'custom-mentor-img', label: 'AI Mentor – vlastní ilustrace' }
+  ];
   const [quizAiLoadingId, setQuizAiLoadingId] = useState(null);
 
   // Android APK most (window.ElektroMentorAndroid) – v prohlížeči není, chování se nemění
@@ -572,7 +701,7 @@ export default function App() {
       : null;
 
   // Pomocná funkce pro stažení obrázku přímo do zařízení
-  const downloadImageToDevice = (imageUrl, title = 'ilustrace') => {
+  const downloadImageToDevice = (imageUrl, title = 'ilustrace', fileNameOverride?: string) => {
     if (!imageUrl) return;
     const safeName = title
       .toLowerCase()
@@ -582,10 +711,15 @@ export default function App() {
       .replace(/(^-|-$)/g, '')
       .slice(0, 50);
 
-    const fileName = `elektromentor-p6-${safeName || 'obrazek'}.png`;
+    const fileName = fileNameOverride || `elektromentor-p6-${safeName || 'obrazek'}.png`;
     const androidBridge = getAndroidBridge();
     if (androidBridge && typeof androidBridge.saveDataUrl === 'function' && imageUrl.startsWith('data:')) {
       androidBridge.saveDataUrl(imageUrl, fileName);
+      return;
+    }
+    if (androidBridge && typeof androidBridge.saveDataUrl === 'function' && imageUrl.startsWith('blob:')) {
+      fetch(imageUrl).then((res) => res.blob()).then(blobToDataUrl)
+        .then((d) => androidBridge.saveDataUrl(d, fileName)).catch(() => {});
       return;
     }
     const link = document.createElement('a');
@@ -596,12 +730,18 @@ export default function App() {
     document.body.removeChild(link);
   };
 
+  const fileNameFor = (key, img) => {
+    const mime = img.mime || (img.url?.startsWith('data:') ? img.url.slice(5, img.url.indexOf(';')) : 'image/png');
+    return exportFileName(key, img.title, mime, img.fileName);
+  };
+
   // Hromadné stažení všech uložených ilustrací ze složky
   const downloadAllImages = () => {
-    const entries = Object.values(generatedImages);
-    entries.forEach((img, index) => {
+    // Názvy {klíč}__{titulek}.{přípona originálu} → jdou naimportovat zpět se správným přiřazením
+    const entries = Object.entries(generatedImages);
+    entries.forEach(([key, img], index) => {
       setTimeout(() => {
-        downloadImageToDevice(img.url, `${index + 1}-${img.title}`);
+        downloadImageToDevice(img.url, img.title, fileNameFor(key, img));
       }, index * 300);
     });
   };
@@ -613,6 +753,7 @@ export default function App() {
       delete updated[key];
       return updated;
     });
+    deleteImage(key).catch(() => {}).finally(refreshStorage);
   };
 
   // Zastavení audia při odmountování
@@ -811,6 +952,10 @@ export default function App() {
   // Funkce pro generování výukového obrázku / infografiky přes Gemini 3.1 Flash Image
   const generateVisualAid = async (id, title, analogyText, officialContext, mode = 'analogy') => {
     if (imageLoadingId) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setImageError('Jsi offline – AI obrázek teď nelze vygenerovat. Ve Složce ilustrací můžeš importovat a přiřadit vlastní obrázek.');
+      return;
+    }
     setImageLoadingId(id);
     setImageError(null);
 
@@ -855,6 +1000,10 @@ export default function App() {
         if (part && part.inlineData?.data) {
           const mimeType = part.inlineData.mimeType || 'image/png';
           const imageUrl = `data:${mimeType};base64,${part.inlineData.data}`;
+          const createdAtLabel = nowLabel();
+          fetch(imageUrl).then((res) => res.blob())
+            .then((blob) => saveRecord(id, blob, { title, mode, source: 'ai', createdAt: createdAtLabel, mime: mimeType }))
+            .catch(() => {});
           setGeneratedImages((prev) => ({
             ...prev,
             [id]: {
@@ -1231,10 +1380,34 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                     <p className="text-xs text-slate-400">
                       Všechny vygenerované vizuální taháky a schémata na jednom místě připravené ke stažení
                     </p>
+                    {storageInfo && storageInfo.quota > 0 && (
+                      <p className={`text-[11px] mt-0.5 ${storageInfo.quota - storageInfo.usage < 50 * 1048576 || storageInfo.usage / storageInfo.quota > 0.85 ? 'text-amber-400 font-semibold' : 'text-slate-500'}`}>
+                        Úložiště v zařízení: {fmtMB(storageInfo.usage)} z {fmtMB(storageInfo.quota)}
+                        {(storageInfo.quota - storageInfo.usage < 50 * 1048576 || storageInfo.usage / storageInfo.quota > 0.85) &&
+                          ' – dochází místo, stáhni si zálohu („Stáhnout vše“) a odstraň nepotřebné obrázky.'}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept="image/*,.zip,application/zip"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => { handleImportFiles(e.target.files); e.target.value = ''; }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => importInputRef.current?.click()}
+                    title="Načíst obrázky (nebo ZIP) ze zařízení – uloží se originály"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold transition shadow-md shadow-indigo-500/20"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Importovat
+                  </button>
                   {savedImagesList.length > 0 && (
                     <button
                       type="button"
@@ -1257,6 +1430,48 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
 
               {/* Obsah složky */}
               <div className="p-6 overflow-y-auto space-y-4">
+                {importMsg && (
+                  <div className="flex items-start justify-between gap-3 px-4 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-xs text-indigo-200">
+                    <span>{importMsg}</span>
+                    <button type="button" onClick={() => setImportMsg(null)} className="text-indigo-300 hover:text-white">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+                {assignKey && generatedImages[assignKey] && (
+                  <div className="rounded-xl border border-amber-500/40 bg-slate-950 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-bold text-white">
+                        Přiřadit „{generatedImages[assignKey].title}“ k otázce nebo pojmu
+                      </div>
+                      <button type="button" onClick={() => setAssignKey(null)} className="p-1 rounded-lg text-slate-400 hover:text-white">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <input
+                      autoFocus
+                      value={assignQuery}
+                      onChange={(e) => setAssignQuery(e.target.value)}
+                      placeholder="Hledat otázku nebo téma (číslo nebo text)…"
+                      className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500"
+                    />
+                    <div className="max-h-64 overflow-y-auto space-y-1">
+                      {assignTargets
+                        .filter((t) => !assignQuery.trim() || t.label.toLowerCase().includes(assignQuery.trim().toLowerCase()))
+                        .map((t) => (
+                          <button
+                            key={t.key}
+                            type="button"
+                            onClick={() => assignImage(assignKey, t.key)}
+                            className="w-full text-left px-3 py-2 rounded-lg bg-slate-900 hover:bg-indigo-500/20 border border-slate-800 text-xs text-slate-200"
+                          >
+                            {t.label.length > 120 ? t.label.slice(0, 120) + '…' : t.label}
+                            {generatedImages[t.key] && <span className="ml-2 text-amber-400">(nahradí stávající)</span>}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
                 {savedImagesList.length === 0 ? (
                   <div className="text-center py-12 px-4 space-y-3">
                     <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mx-auto text-slate-400">
@@ -1266,7 +1481,7 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                       Vaše složka ilustrací je zatím prázdná
                     </h4>
                     <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
-                      Jakmile si u kterékoliv otázky v kvízu, v taháku s analogiemi nebo u AI Mentora necháte vygenerovat obrázek, automaticky se vám sem uloží a budete si ho moci kdykoliv stáhnout do počítače či telefonu.
+                      Jakmile si u kterékoliv otázky v kvízu, v taháku s analogiemi nebo u AI Mentora necháte vygenerovat obrázek, automaticky se vám sem uloží a budete si ho moci kdykoliv stáhnout do počítače či telefonu. Vlastní obrázky (i ZIP) můžete načíst tlačítkem „Importovat“ – podle názvu souboru (např. q-12.png, t-3.jpg) se samy přiřadí k otázce nebo tématu a fungují i offline.
                     </p>
                   </div>
                 ) : (
@@ -1287,12 +1502,17 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                             <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-slate-950/80 border border-slate-700 text-[10px] font-semibold text-indigo-300">
                               {item.mode === 'technical'
                                 ? 'Technické schéma'
+                                : item.mode === 'import'
+                                ? 'Importováno'
                                 : 'Vizuální analogie'}
                             </span>
                           </div>
                           <div className="p-3.5 space-y-1">
                             <div className="text-xs font-bold text-white line-clamp-2">
                               {item.title}
+                            </div>
+                            <div className={`text-[11px] ${labelForKey(key) ? 'text-emerald-400' : 'text-amber-400'}`}>
+                              {labelForKey(key) ? `Přiřazeno: ${labelForKey(key)}` : 'Nepřiřazeno – klikni na „Přiřadit“'}
                             </div>
                             {item.createdAt && (
                               <div className="text-[11px] text-slate-500">
@@ -1306,11 +1526,19 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                           <button
                             type="button"
                             onClick={() =>
-                              downloadImageToDevice(item.url, item.title)
+                              downloadImageToDevice(item.url, item.title, fileNameFor(key, item))
                             }
                             className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold transition"
                           >
                             <Download className="w-3.5 h-3.5" /> Stáhnout
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setAssignKey(key); setAssignQuery(''); }}
+                            title="Přiřadit k otázce nebo pojmu"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 transition"
+                          >
+                            <Link2 className="w-4 h-4" />
                           </button>
                           <button
                             type="button"
