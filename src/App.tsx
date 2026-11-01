@@ -626,8 +626,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Android WebView nemá Web Speech API (speechSynthesis === undefined) – bez guardu React spadne a zůstane prázdná (černá) stránka.
+    const synth = typeof window !== 'undefined' ? (window as any).speechSynthesis : undefined;
+    if (!synth || typeof synth.getVoices !== 'function') return;
     const loadVoices = () => {
-      const voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('cs') || v.lang.startsWith('en'));
+      const voices = synth.getVoices().filter(v => v.lang.startsWith('cs') || v.lang.startsWith('en'));
       setSystemVoices(voices);
       if (!selectedVoice && voices.length) {
         const cs = voices.find(v => v.lang.startsWith('cs'));
@@ -635,8 +638,8 @@ export default function App() {
       }
     };
     loadVoices();
-    speechSynthesis.onvoiceschanged = loadVoices;
-    return () => { speechSynthesis.onvoiceschanged = null; };
+    synth.onvoiceschanged = loadVoices;
+    return () => { synth.onvoiceschanged = null; };
   }, []);
 
   // Systémové TTS (Web Speech API)
@@ -660,13 +663,18 @@ export default function App() {
       }
       return;
     }
+    const synth = (window as any).speechSynthesis;
+    if (!synth || typeof (window as any).SpeechSynthesisUtterance === 'undefined') {
+      alert('Systémový hlas není v tomto prohlížeči dostupný. Přepni na Gemini TTS.');
+      return;
+    }
     if (ttsPlayingId === id && utteranceRef.current) {
-      speechSynthesis.cancel();
+      synth.cancel();
       setTtsPlayingId(null);
       setMiniPlayer(null);
       return;
     }
-    speechSynthesis.cancel();
+    synth.cancel();
     const u = new SpeechSynthesisUtterance(textToRead);
     u.lang = selectedVoice?.lang || 'cs-CZ';
     if (selectedVoice) u.voice = selectedVoice;
@@ -682,7 +690,7 @@ export default function App() {
     utteranceRef.current = u;
     setTtsPlayingId(id);
     setMiniPlayer({ id, text: textToRead.slice(0, 80) + (textToRead.length > 80 ? '…' : '') });
-    speechSynthesis.speak(u);
+    synth.speak(u);
   };
 
   // Funkce pro přehrání / zastavení odstavce přes Gemini TTS
@@ -2941,7 +2949,7 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
             <span className="truncate">{miniPlayer.text}</span>
             <button
               onClick={() => {
-                speechSynthesis.cancel();
+                (window as any).speechSynthesis?.cancel();
                 getAndroidBridge()?.stop();
                 if (audioRef.current) audioRef.current.pause();
                 setTtsPlayingId(null);
