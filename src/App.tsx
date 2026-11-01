@@ -38,6 +38,7 @@ import {
   Upload,
   Link2
 } from 'lucide-react';
+import { cleanTtsText } from './lib/ttsText';
 import {
   loadAllImages, putImage, deleteImage, requestPersist, storageEstimate,
   exportFileName, guessKey, blobToDataUrl, mimeOf, isImageName, fmtMB,
@@ -860,7 +861,9 @@ export default function App() {
   }, []);
 
   // Systémové TTS (Web Speech API)
-  const playSystemTts = (id, textToRead) => {
+  const playSystemTts = (id, rawText) => {
+    const textToRead = cleanTtsText(rawText);
+    if (!textToRead) return;
     const androidBridge = getAndroidBridge();
     if (androidBridge) {
       // Android WebView: speechSynthesis nefunguje -> nativní TextToSpeech (cs-CZ) s rychlostí
@@ -911,7 +914,8 @@ export default function App() {
   };
 
   // Funkce pro přehrání / zastavení odstavce přes Gemini TTS
-  const playTts = async (id, textToRead, e) => {
+  const playTts = async (id, rawText, e) => {
+    const textToRead = cleanTtsText(rawText);
     if (e) {
       e.stopPropagation();
     }
