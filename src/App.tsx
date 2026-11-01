@@ -565,6 +565,12 @@ export default function App() {
   const [quizAiExplanations, setQuizAiExplanations] = useState({});
   const [quizAiLoadingId, setQuizAiLoadingId] = useState(null);
 
+  // Android APK most (window.ElektroMentorAndroid) – v prohlížeči není, chování se nemění
+  const getAndroidBridge = () =>
+    typeof window !== 'undefined' && typeof (window as any).ElektroMentorAndroid?.speak === 'function'
+      ? (window as any).ElektroMentorAndroid
+      : null;
+
   // Pomocná funkce pro stažení obrázku přímo do zařízení
   const downloadImageToDevice = (imageUrl, title = 'ilustrace') => {
     if (!imageUrl) return;
@@ -576,9 +582,15 @@ export default function App() {
       .replace(/(^-|-$)/g, '')
       .slice(0, 50);
 
+    const fileName = `elektromentor-p6-${safeName || 'obrazek'}.png`;
+    const androidBridge = getAndroidBridge();
+    if (androidBridge && typeof androidBridge.saveDataUrl === 'function' && imageUrl.startsWith('data:')) {
+      androidBridge.saveDataUrl(imageUrl, fileName);
+      return;
+    }
     const link = document.createElement('a');
     link.href = imageUrl;
-    link.download = `elektromentor-p6-${safeName || 'obrazek'}.png`;
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -629,6 +641,25 @@ export default function App() {
 
   // Systémové TTS (Web Speech API)
   const playSystemTts = (id, textToRead) => {
+    const androidBridge = getAndroidBridge();
+    if (androidBridge) {
+      // Android WebView: speechSynthesis nefunguje -> nativní TextToSpeech (cs-CZ) s rychlostí
+      if (ttsPlayingId === id) {
+        androidBridge.stop();
+        setTtsPlayingId(null);
+        setMiniPlayer(null);
+        return;
+      }
+      (window as any).onNativeTtsDone = () => {
+        setTtsPlayingId(null);
+        setMiniPlayer(null);
+      };
+      if (androidBridge.speak(textToRead, Number(ttsRate) || 1.0)) {
+        setTtsPlayingId(id);
+        setMiniPlayer({ id, text: textToRead.slice(0, 80) + (textToRead.length > 80 ? '…' : '') });
+      }
+      return;
+    }
     if (ttsPlayingId === id && utteranceRef.current) {
       speechSynthesis.cancel();
       setTtsPlayingId(null);
@@ -2911,6 +2942,7 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
             <button
               onClick={() => {
                 speechSynthesis.cancel();
+                getAndroidBridge()?.stop();
                 if (audioRef.current) audioRef.current.pause();
                 setTtsPlayingId(null);
                 setMiniPlayer(null);
