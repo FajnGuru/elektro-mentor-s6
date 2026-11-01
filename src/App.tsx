@@ -543,12 +543,16 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
 
-  // Stav pro Gemini TTS předčítání
+  // Stav pro TTS (Gemini + systémový)
   const [ttsPlayingId, setTtsPlayingId] = useState(null);
   const [ttsLoadingId, setTtsLoadingId] = useState(null);
   const [ttsError, setTtsError] = useState(null);
+  const [ttsMode, setTtsMode] = useState('system'); // 'system' | 'gemini'
+  const [ttsRate, setTtsRate] = useState(1.0);
+  const [miniPlayer, setMiniPlayer] = useState(null); // { text, id }
   const audioRef = React.useRef(null);
   const ttsCacheRef = React.useRef({});
+  const utteranceRef = React.useRef(null);
 
   // Stav pro AI generování obrázků (gemini-3.1-flash-image) a hlubší AI rozbor v kvízu
   const [generatedImages, setGeneratedImages] = useState({});
@@ -606,6 +610,33 @@ export default function App() {
       }
     };
   }, []);
+
+
+  // Systémové TTS (Web Speech API)
+  const playSystemTts = (id, textToRead) => {
+    if (ttsPlayingId === id && utteranceRef.current) {
+      speechSynthesis.cancel();
+      setTtsPlayingId(null);
+      setMiniPlayer(null);
+      return;
+    }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(textToRead);
+    u.lang = 'cs-CZ';
+    u.rate = ttsRate;
+    u.onend = () => {
+      setTtsPlayingId(null);
+      setMiniPlayer(null);
+    };
+    u.onerror = () => {
+      setTtsPlayingId(null);
+      setMiniPlayer(null);
+    };
+    utteranceRef.current = u;
+    setTtsPlayingId(id);
+    setMiniPlayer({ id, text: textToRead.slice(0, 80) + (textToRead.length > 80 ? '…' : '') });
+    speechSynthesis.speak(u);
+  };
 
   // Funkce pro přehrání / zastavení odstavce přes Gemini TTS
   const playTts = async (id, textToRead, e) => {
@@ -860,11 +891,19 @@ Prosím o:
     const isPlaying = ttsPlayingId === id;
     const isLoading = ttsLoadingId === id;
 
+    const handleClick = (e) => {
+      if (ttsMode === 'system') {
+        playSystemTts(id, text);
+      } else {
+        playTts(id, text, e);
+      }
+    };
+
     return (
       <button
         type="button"
-        onClick={(e) => playTts(id, text, e)}
-        title={isPlaying ? 'Zastavit předčítání' : `${label} (Gemini TTS)`}
+        onClick={handleClick}
+        title={isPlaying ? 'Zastavit předčítání' : `${label} (${ttsMode === 'system' ? 'systémový hlas' : 'Gemini TTS'})`}
         className={`inline-flex items-center justify-center p-1.5 rounded-lg border transition-all shrink-0 ${
           isPlaying
             ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20 animate-pulse'
@@ -2846,6 +2885,52 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
           </div>
         )}
       </main>
+
+      {/* TTS nastavení + mini přehrávač */}
+      <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
+        {miniPlayer && (
+          <div className="bg-slate-900/95 border border-amber-500/40 rounded-xl px-3 py-2 shadow-lg text-xs text-slate-200 max-w-xs flex items-center gap-2">
+            <Volume2 className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="truncate">{miniPlayer.text}</span>
+            <button
+              onClick={() => {
+                speechSynthesis.cancel();
+                if (audioRef.current) audioRef.current.pause();
+                setTtsPlayingId(null);
+                setMiniPlayer(null);
+              }}
+              className="ml-1 text-amber-400 hover:text-amber-300"
+            >
+              <Square className="w-3.5 h-3.5 fill-current" />
+            </button>
+          </div>
+        )}
+        <div className="bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2 shadow-lg text-xs flex items-center gap-3">
+          <span className="text-slate-400">TTS:</span>
+          <button
+            onClick={() => setTtsMode(ttsMode === 'system' ? 'gemini' : 'system')}
+            className={`px-2 py-0.5 rounded ${ttsMode === 'system' ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
+          >
+            {ttsMode === 'system' ? 'Systém' : 'Gemini'}
+          </button>
+          {ttsMode === 'system' && (
+            <label className="flex items-center gap-1 text-slate-300">
+              Rychlost
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.1"
+                value={ttsRate}
+                onChange={(e) => setTtsRate(parseFloat(e.target.value))}
+                className="w-16"
+              />
+              <span>{ttsRate.toFixed(1)}×</span>
+            </label>
+          )}
+        </div>
+      </div>
+
     </div>
   );
 }
