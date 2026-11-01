@@ -549,6 +549,8 @@ export default function App() {
   const [ttsError, setTtsError] = useState(null);
   const [ttsMode, setTtsMode] = useState('system'); // 'system' | 'gemini'
   const [ttsRate, setTtsRate] = useState(1.0);
+  const [systemVoices, setSystemVoices] = useState([]);
+  const [selectedVoice, setSelectedVoice] = useState(null);
   const [miniPlayer, setMiniPlayer] = useState(null); // { text, id }
   const audioRef = React.useRef(null);
   const ttsCacheRef = React.useRef({});
@@ -611,6 +613,19 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('cs') || v.lang.startsWith('en'));
+      setSystemVoices(voices);
+      if (!selectedVoice && voices.length) {
+        const cs = voices.find(v => v.lang.startsWith('cs'));
+        setSelectedVoice(cs || voices[0]);
+      }
+    };
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+    return () => { speechSynthesis.onvoiceschanged = null; };
+  }, []);
 
   // Systémové TTS (Web Speech API)
   const playSystemTts = (id, textToRead) => {
@@ -622,7 +637,8 @@ export default function App() {
     }
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(textToRead);
-    u.lang = 'cs-CZ';
+    u.lang = selectedVoice?.lang || 'cs-CZ';
+    if (selectedVoice) u.voice = selectedVoice;
     u.rate = ttsRate;
     u.onend = () => {
       setTtsPlayingId(null);
@@ -2914,19 +2930,34 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
             {ttsMode === 'system' ? 'Systém' : 'Gemini'}
           </button>
           {ttsMode === 'system' && (
-            <label className="flex items-center gap-1 text-slate-300">
-              Rychlost
-              <input
-                type="range"
-                min="0.5"
-                max="2"
-                step="0.1"
-                value={ttsRate}
-                onChange={(e) => setTtsRate(parseFloat(e.target.value))}
-                className="w-16"
-              />
-              <span>{ttsRate.toFixed(1)}×</span>
-            </label>
+            <>
+              <label className="flex items-center gap-1 text-slate-300">
+                Rychlost
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={ttsRate}
+                  onChange={(e) => setTtsRate(parseFloat(e.target.value))}
+                  className="w-16"
+                />
+                <span>{ttsRate.toFixed(1)}×</span>
+              </label>
+              <select
+                value={selectedVoice?.name || ''}
+                onChange={(e) => {
+                  const v = systemVoices.find(x => x.name === e.target.value);
+                  if (v) setSelectedVoice(v);
+                }}
+                className="bg-slate-800 text-slate-200 text-xs rounded px-1 py-0.5 max-w-[140px]"
+                title="Vybrat hlas"
+              >
+                {systemVoices.map(v => (
+                  <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
+                ))}
+              </select>
+            </>
           )}
         </div>
       </div>
