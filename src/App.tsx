@@ -645,7 +645,7 @@ export default function App() {
 
     setTtsLoadingId(id);
 
-    const apiKey = '';
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
 
     const payload = {
@@ -733,7 +733,7 @@ export default function App() {
         ? `Vytvoř přehledné, moderní výukové technické schéma a infografiku pro elektrikáře (zkouška § 6 NV č. 194/2022 Sb.) na téma: "${title}". Technický kontext: ${officialContext}. Použij jasné vizuální prvky, elektro symboly, barevné rozlišení a stručné české popisky.`
         : `Vytvoř názornou, zapamatovatelnou výukovou ilustraci (rozdělenou na 2 části: vlevo životní analogie, vpravo reálná elektrotechnická praxe) na téma: "${title}". Analogie Mistra Karla: ${analogyText}. Odborný kontext: ${officialContext}. Styl: čistá moderní edukační infografika s krátkými českými popisky pro snadné vizuální zapamatování u zkoušky.`;
 
-    const apiKey = '';
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
 
     const payload = {
@@ -817,7 +817,7 @@ Prosím o:
 
     const systemInstruction = `Jsi Mistr Karel, přátelský mentor pro zkoušky elektrotechniků (§ 6 NV č. 194/2022 Sb.). Odpovídej věcně, barvitě, pomocí praxe a analogií, v krátkých přehledných odstavcích.`;
 
-    const apiKey = '';
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
     const payload = {
@@ -968,7 +968,7 @@ Tvým úkolem je vysvětlit jakýkoliv dotaz, pojem z příručky nebo zhodnotit
 3. Na závěr přidej "Tip Mistra Karla ke zkoušce" – na jaký chyták si dát v testu nebo u ústní zkoušky pozor.
 Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
 
-    const apiKey = '';
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
     const payload = {
