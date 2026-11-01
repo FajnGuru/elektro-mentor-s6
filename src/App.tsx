@@ -734,7 +734,8 @@ export default function App() {
         : `Vytvoř názornou, zapamatovatelnou výukovou ilustraci (rozdělenou na 2 části: vlevo životní analogie, vpravo reálná elektrotechnická praxe) na téma: "${title}". Analogie Mistra Karla: ${analogyText}. Odborný kontext: ${officialContext}. Styl: čistá moderní edukační infografika s krátkými českými popisky pro snadné vizuální zapamatování u zkoušky.`;
 
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
+    const imageApiKey = import.meta.env.VITE_GEMINI_IMAGE_API_KEY || apiKey;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${imageApiKey}`;
 
     const payload = {
       contents: [
