@@ -528,7 +528,11 @@ export default function App() {
 
   // Stav pro studijní karty
   const [selectedTopicId, setSelectedTopicId] = useState(STUDY_TOPICS[0].id);
-  const [completedTopics, setCompletedTopics] = useState(['hierarchie']);
+  const [completedTopics, setCompletedTopics] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('em-completed') || '["hierarchie"]'); } catch { return ['hierarchie']; }
+  });
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('em-dark') !== 'false');
+  const [wrongOnly, setWrongOnly] = useState(false);
 
   // Stav pro trenažér 5 zlatých pravidel
   const [shuffledRules, setShuffledRules] = useState([]);
@@ -833,6 +837,15 @@ export default function App() {
     deleteImage(key).catch(() => {}).finally(refreshStorage);
   };
 
+
+  useEffect(() => {
+    localStorage.setItem('em-completed', JSON.stringify(completedTopics));
+  }, [completedTopics]);
+  useEffect(() => {
+    localStorage.setItem('em-dark', darkMode ? 'true' : 'false');
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, [darkMode]);
+
   // Zastavení audia při odmountování
   useEffect(() => {
     return () => {
@@ -859,6 +872,17 @@ export default function App() {
     synth.onvoiceschanged = loadVoices;
     return () => { synth.onvoiceschanged = null; };
   }, []);
+
+
+  const exportProgress = () => {
+    const done = STUDY_TOPICS.filter(t => completedTopics.includes(t.id)).map(t => t.title);
+    const text = `ElektroMentor § 6 – zvládnutá témata\n${done.join('\n') || '(žádná)'}\n\nCelkem: ${done.length}/${STUDY_TOPICS.length}`;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'elektromentor-progress.txt';
+    a.click();
+  };
 
   // Systémové TTS (Web Speech API)
   const playSystemTts = (id, rawText) => {
@@ -1240,10 +1264,13 @@ Prosím o:
   };
 
   // Filtrované otázky kvízu
-  const activeQuestions =
+  const baseQuestions =
     quizFilter === 'artifact'
       ? QUIZ_QUESTIONS.filter((q) => q.fromArtifact)
       : QUIZ_QUESTIONS;
+  const activeQuestions = wrongOnly
+    ? baseQuestions.filter((q) => userAnswers[q.id] !== undefined && userAnswers[q.id] !== q.correctIndex)
+    : baseQuestions;
 
   const currentQuestion = activeQuestions[currentQuestionIdx] || activeQuestions[0];
 
@@ -2544,9 +2571,19 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                       } správně.`}
                     />
                   </div>
-                  <div className="pt-2">
+                  <div className="pt-2 flex flex-wrap gap-2">
                     <button
-                      onClick={() => resetQuiz(quizMode, quizFilter)}
+                      onClick={() => {
+                        setWrongOnly(true);
+                        setQuizFinished(false);
+                        setCurrentQuestionIdx(0);
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-semibold text-xs transition"
+                    >
+                      Opakovat jen špatné
+                    </button>
+                    <button
+                      onClick={() => { setWrongOnly(false); resetQuiz(quizMode, quizFilter); }}
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition"
                     >
                       <RotateCcw className="w-4 h-4" /> Zkusit kvíz znovu
@@ -2582,11 +2619,25 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                           )}
                         </div>
                         {!isCorrect && (
-                          <div className="text-xs text-rose-300">
-                            Vaše odpověď:{' '}
-                            {userAns !== undefined
-                              ? q.options[userAns]
-                              : 'Nezodpovězeno'}
+                          <div className="space-y-1">
+                            <div className="text-xs text-rose-300">
+                              Vaše odpověď:{' '}
+                              {userAns !== undefined
+                                ? q.options[userAns]
+                                : 'Nezodpovězeno'}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setActiveTab('analogies');
+                                // try to map category to topic if possible
+                                const cat = q.category || '';
+                                const match = STUDY_TOPICS.find(t => cat.includes(t.category.split('(')[0].trim()) || t.title.includes(cat));
+                                if (match) setSelectedTopicId(match.id);
+                              }}
+                              className="text-xs text-amber-400 hover:text-amber-300 underline"
+                            >
+                              Otevřít související analogii
+                            </button>
                           </div>
                         )}
                         <div className="text-xs text-emerald-300 font-semibold">
@@ -3277,7 +3328,13 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
             </button>
           </div>
         )}
-        <div className="bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2 shadow-lg text-xs flex items-center gap-3">
+        <div className="bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2 shadow-lg text-xs flex items-center gap-3 flex-wrap">
+          <button onClick={() => setDarkMode(d => !d)} className="px-2 py-0.5 rounded bg-slate-800 text-slate-300" title="Přepnout dark/light">
+            {darkMode ? '🌙' : '☀️'}
+          </button>
+          <button onClick={exportProgress} className="px-2 py-0.5 rounded bg-slate-800 text-slate-300" title="Exportovat postup">
+            Export
+          </button>
           <span className="text-slate-400">TTS:</span>
           <button
             onClick={() => setTtsMode(ttsMode === 'system' ? 'gemini' : 'system')}
