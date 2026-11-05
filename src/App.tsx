@@ -533,6 +533,10 @@ export default function App() {
   });
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('em-dark') !== 'false');
   const [wrongOnly, setWrongOnly] = useState(false);
+  const [reviewDates, setReviewDates] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('em-reviews') || '{}'); } catch { return {}; }
+  });
+  const [quickMode, setQuickMode] = useState(false);
 
   // Stav pro trenažér 5 zlatých pravidel
   const [shuffledRules, setShuffledRules] = useState([]);
@@ -838,6 +842,11 @@ export default function App() {
   };
 
 
+
+  useEffect(() => {
+    localStorage.setItem('em-reviews', JSON.stringify(reviewDates));
+  }, [reviewDates]);
+
   useEffect(() => {
     localStorage.setItem('em-completed', JSON.stringify(completedTopics));
   }, [completedTopics]);
@@ -883,6 +892,17 @@ export default function App() {
     a.download = 'elektromentor-progress.txt';
     a.click();
   };
+
+
+  const scheduleReview = (topicId, days) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setReviewDates(prev => ({ ...prev, [topicId]: d.toISOString().slice(0, 10) }));
+  };
+  const dueReviews = STUDY_TOPICS.filter(t => {
+    const date = reviewDates[t.id];
+    return date && new Date(date) <= new Date();
+  });
 
   // Systémové TTS (Web Speech API)
   const playSystemTts = (id, rawText) => {
@@ -1977,6 +1997,20 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
             ZÁLOŽKA 2: TAHÁK S ANALOGIEMI
            ========================================== */}
         {activeTab === 'analogies' && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setQuickMode(q => !q)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${quickMode ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
+            >
+              {quickMode ? 'Rychlý režim zapnutý' : 'Rychlý režim (jen body + chytáky)'}
+            </button>
+            {dueReviews.length > 0 && (
+              <span className="text-xs text-amber-400">
+                {dueReviews.length} témat k opakování dnes
+              </span>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Levý sloupec: Seznam témat */}
             <div className="lg:col-span-4 space-y-2">
@@ -2057,9 +2091,25 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                       ? 'Označeno jako nastudované'
                       : 'Označit jako nastudované'}
                   </button>
+                  <button
+                    onClick={() => scheduleReview(selectedTopic.id, 1)}
+                    className="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 ml-2"
+                  >
+                    Opakovat za 1 den
+                  </button>
+                  <button
+                    onClick={() => scheduleReview(selectedTopic.id, 3)}
+                    className="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 ml-1"
+                  >
+                    Opakovat za 3 dny
+                  </button>
                 </div>
 
-                {/* 1. Oficiální řeč zákona / normy */}
+                {quickMode && (
+                  <div className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-3">
+                    Rychlý režim: zobrazují se jen klíčové body a chytáky.
+                  </div>
+                )}
                 <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-400">
