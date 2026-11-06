@@ -1997,6 +1997,7 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
             ZÁLOŽKA 2: TAHÁK S ANALOGIEMI
            ========================================== */}
         {activeTab === 'analogies' && (
+          <>
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <button
               onClick={() => setQuickMode(q => !q)}
@@ -2356,6 +2357,7 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
               </div>
             </div>
           </div>
+          </>
         )}
 
         {/* ==========================================
