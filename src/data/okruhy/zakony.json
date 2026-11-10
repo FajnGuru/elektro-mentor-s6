@@ -1,0 +1,117 @@
+[
+  {
+    "id": "p6-cddb4482",
+    "cat": "zakony",
+    "categoryName": "Zákony a Vyhlášky (NV 194/2022)",
+    "question": "Který předpis upravuje požadavky na odbornou způsobilost k výkonu činnosti na elektrických zařízeních a nahradil vyhlášku č. 50/1978 Sb.?",
+    "options": [
+      "Nařízení vlády č. 194/2022 Sb.",
+      "Zákon č. 262/2006 Sb.",
+      "Vyhláška č. 48/1982 Sb.",
+      "Nařízení vlády č. 362/2005 Sb."
+    ],
+    "correct": 0,
+    "explanation": "Od 1. 7. 2022 se odborná způsobilost řídí nařízením vlády č. 194/2022 Sb.",
+    "analogie": null,
+    "zdroj": {
+      "predpis": "NV č. 194/2022 Sb.",
+      "clanek": null,
+      "url": null
+    },
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-50512b87",
+    "cat": "zakony",
+    "categoryName": "Zákony a Vyhlášky (NV 194/2022)",
+    "question": "Jaké oprávnění má elektrotechnik podle § 6 nařízení vlády č. 194/2022 Sb.?",
+    "options": [
+      "Vykonává činnosti na elektrických zařízeních a v jejich blízkosti samostatně, s výjimkou zvláštních případů vycházejících z hodnocení rizik",
+      "Může řídit činnosti, řídit provoz a projektovat vyhrazená elektrická zařízení",
+      "Může provádět revize vyhrazených elektrických zařízení",
+      "Smí elektrická zařízení pouze obsluhovat jako osoba poučená"
+    ],
+    "correct": 0,
+    "explanation": "Podle § 6 odst. 1 NV 194/2022 Sb. elektrotechnik vykonává činnosti na elektrických zařízeních a v jejich blízkosti samostatně, s výjimkou zvláštních případů vycházejících z hodnocení rizik. Samostatná činnost je podle § 2 písm. d) činnost bez nezbytnosti dohledu nebo dozoru jiné osoby. Řízení činností, řízení provozu a projektování vyhrazených elektrických zařízení může vykonávat až vedoucí elektrotechnik podle § 7 odst. 1. Revize provádí revizní technik podle § 8.",
+    "analogie": {
+      "autor": "Mistr Karel",
+      "text": "Elektrotechnik je jako řidič s papíry, který smí jezdit sám. Řídit celou kolonu ale smí až vedoucí, tedy vedoucí elektrotechnik."
+    },
+    "zdroj": {
+      "predpis": "NV č. 194/2022 Sb.",
+      "clanek": "§ 6 odst. 1; § 2 písm. d); § 7 odst. 1; § 8",
+      "url": "https://www.e-sbirka.cz/sb/2022/194"
+    },
+    "overeni": {
+      "stav": "overeno",
+      "kdo": "Guru Lektor + Guru App",
+      "datum": "2026-11-10",
+      "poznamka": "Ověřeno z textu předpisu (e-Sbírka)."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-45906576",
+    "cat": "zakony",
+    "categoryName": "Zákony a Vyhlášky (NV 194/2022)",
+    "question": "Jaký zákon upravuje bezpečnost provozu vyhrazených technických zařízení (VTZ)?",
+    "options": [
+      "Zákon č. 250/2021 Sb.",
+      "Zákon č. 22/1997 Sb.",
+      "Zákon č. 90/2016 Sb.",
+      "Zákon č. 455/1991 Sb."
+    ],
+    "correct": 0,
+    "explanation": "Zákon č. 250/2021 Sb. je základní právní úpravou pro VTZ.",
+    "analogie": null,
+    "zdroj": {
+      "predpis": "Zákon č. 250/2021 Sb.",
+      "clanek": null,
+      "url": null
+    },
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-78f678cc",
+    "cat": "zakony",
+    "categoryName": "Zákony a Vyhlášky (NV 194/2022)",
+    "question": "Které nařízení vlády vymezuje vyhrazená elektrická zařízení?",
+    "options": [
+      "Nařízení vlády č. 190/2022 Sb.",
+      "Nařízení vlády č. 194/2022 Sb.",
+      "Nařízení vlády č. 362/2005 Sb.",
+      "Vyhláška č. 73/2010 Sb."
+    ],
+    "correct": 0,
+    "explanation": "NV č. 190/2022 Sb. vymezuje vyhrazená elektrická zařízení.",
+    "analogie": null,
+    "zdroj": {
+      "predpis": "NV č. 190/2022 Sb.",
+      "clanek": null,
+      "url": null
+    },
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  }
+]

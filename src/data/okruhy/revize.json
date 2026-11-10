@@ -1,0 +1,133 @@
+[
+  {
+    "id": "p6-7a164329",
+    "cat": "revize",
+    "categoryName": "Revize & Měřicí přístroje",
+    "question": "Která norma upravuje revize přenosného el. nářadí během provozu?",
+    "options": [
+      "ČSN 33 1600 ed. 2",
+      "ČSN 33 2000-5-51 ed. 3",
+      "ČSN 33 2000-4-41 ed. 3",
+      "ČSN EN 61010-1"
+    ],
+    "correct": 0,
+    "explanation": "ČSN 33 1600 ed. 2 definuje lhůty a metodiku pro el. spotřebiče.",
+    "analogie": null,
+    "zdroj": {
+      "predpis": "ČSN 33 1600 ed. 2",
+      "clanek": null,
+      "url": null
+    },
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-e531b399",
+    "cat": "revize",
+    "categoryName": "Revize & Měřicí přístroje",
+    "question": "Čím měříme izolační odpor?",
+    "options": [
+      "Megmetem (např. 500V DC)",
+      "Klešťovým ampérmetrem",
+      "Luxmetrem",
+      "Osciloskopem"
+    ],
+    "correct": 0,
+    "explanation": "Izolační odpor se měří přístrojem generujícím stejnosměrné měřicí napětí (megmet).",
+    "analogie": null,
+    "zdroj": null,
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-d81f9b35",
+    "cat": "revize",
+    "categoryName": "Revize & Měřicí přístroje",
+    "question": "Proč se měří impedance poruchové smyčky (Zs)?",
+    "options": [
+      "Ověření, zda jistič vybaví v předepsaném čase při poruše na kostru",
+      "Zjištění spotřeby",
+      "Stanovení teploty vodičů",
+      "Zjištění kapacity obvodu"
+    ],
+    "correct": 0,
+    "explanation": "Impedance smyčky ověřuje spolehlivost samočinného odpojení od zdroje.",
+    "analogie": null,
+    "zdroj": null,
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-79709030",
+    "cat": "revize",
+    "categoryName": "Revize & Měřicí přístroje",
+    "question": "Kde evidujeme výsledky pravidelné revize spotřebiče?",
+    "options": [
+      "Doklad/protokol o revizi či karta spotřebiče",
+      "Faktura za nákup",
+      "Návod k obsluze",
+      "Kniha docházky"
+    ],
+    "correct": 0,
+    "explanation": "Protokoly nebo karty spotřebičů jsou vyžadovány pro kontrolu BOZP.",
+    "analogie": null,
+    "zdroj": null,
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-3bfebb1d",
+    "cat": "revize",
+    "categoryName": "Revize & Měřicí přístroje",
+    "question": "Jaká je podle ČSN 33 2000-6 ed. 2 minimální hodnota izolačního odporu obvodů SELV a PELV měřená zkušebním stejnosměrným napětím 250 V?",
+    "options": [
+      "0,5 MΩ",
+      "0,25 MΩ",
+      "1,0 MΩ",
+      "10 MΩ"
+    ],
+    "correct": 0,
+    "explanation": "Tabulka 6.1 ČSN 33 2000-6 ed. 2 (Minimální hodnoty izolačního odporu): SELV a PELV – zkušební napětí 250 V DC, minimálně 0,5 MΩ; obvody do 500 V včetně, včetně FELV – 500 V DC, minimálně 1,0 MΩ; obvody nad 500 V – 1 000 V DC, minimálně 1,0 MΩ.",
+    "analogie": {
+      "autor": "Mistr Karel",
+      "text": "Měření izolace je zkouška těsnosti hadice. U slabého proudu SELV/PELV zkoušíš menším tlakem, 250 V, a stačí ti nižší odpor, 0,5 MΩ."
+    },
+    "zdroj": {
+      "predpis": "ČSN 33 2000-6 ed. 2:2017 (idt HD 60364-6:2016)",
+      "clanek": "Tabulka 6.1",
+      "url": "https://www.normservis.cz/download/view/csn/33/501748/501748_nahled.pdf"
+    },
+    "overeni": {
+      "stav": "overeno",
+      "kdo": "Guru Lektor + Guru App",
+      "datum": "2026-11-10",
+      "poznamka": "Ověřeno ze sekundárních zdrojů (ElektroPrůmysl.cz 12/2020, VDE 0100-600:2017-06 Tab. 6.1) a náhledu ČSN, ne z plného textu normy."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  }
+]
