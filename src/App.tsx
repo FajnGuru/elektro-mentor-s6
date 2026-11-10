@@ -39,6 +39,7 @@ import {
   Link2
 } from 'lucide-react';
 import { cleanTtsText } from './lib/ttsText';
+import { P6_QUESTIONS, OKRUHY, STAV_LABEL } from './lib/okruhy';
 import {
   loadAllImages, putImage, deleteImage, requestPersist, storageEstimate,
   exportFileName, guessKey, blobToDataUrl, mimeOf, isImageName, fmtMB,
@@ -523,6 +524,13 @@ const GOLDEN_RULES_GAME = [
   { step: 5, text: 'Ochrana proti okolním živým částem', analogy: 'Zakrýt vedlejší horkou trubku plachtou' }
 ];
 
+const stavBadgeClass = (stav) =>
+  stav === 'overeno'
+    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+    : stav === 'sporne'
+    ? 'bg-orange-500/15 text-orange-300 border-orange-500/40'
+    : 'bg-slate-700/40 text-slate-300 border-slate-600';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'analogies' | 'simulator' | 'quiz' | 'oral'
 
@@ -545,7 +553,8 @@ export default function App() {
 
   // Stav pro Kvíz
   const [quizMode, setQuizMode] = useState('mentor'); // 'mentor' (s vysvětlením hned) | 'exam' (ostrý test 80%)
-  const [quizFilter, setQuizFilter] = useState('all'); // 'all' (15 otázek) | 'artifact' (10 původních přeskočených)
+  const [quizFilter, setQuizFilter] = useState('all'); // 'all' (15 otázek) | 'artifact' (10 původních přeskočených) | 'p6' (okruhy Příprava § 6)
+  const [p6Cat, setP6Cat] = useState('all'); // 'all' | zakony | normy | bezpecnost | revize
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
   const [quizFinished, setQuizFinished] = useState(false);
@@ -613,7 +622,7 @@ export default function App() {
       return t ? `Tahák: ${t.title}` : null;
     }
     if (key.startsWith('quiz-img-')) {
-      const q = QUIZ_QUESTIONS.find((x) => `quiz-img-${x.id}` === key);
+      const q = [...QUIZ_QUESTIONS, ...P6_QUESTIONS].find((x) => `quiz-img-${x.id}` === key);
       return q ? `Otázka ${q.id}: ${q.question.slice(0, 70)}${q.question.length > 70 ? '…' : ''}` : null;
     }
     return null;
@@ -746,7 +755,7 @@ export default function App() {
 
   const assignTargets = [
     ...STUDY_TOPICS.map((t) => ({ key: `topic-${t.id}`, label: `Tahák: ${t.title}` })),
-    ...QUIZ_QUESTIONS.map((q) => ({ key: `quiz-img-${q.id}`, label: `Otázka ${q.id}: ${q.question}` })),
+    ...[...QUIZ_QUESTIONS, ...P6_QUESTIONS].map((q) => ({ key: `quiz-img-${q.id}`, label: `Otázka ${q.id}: ${q.question}` })),
     { key: 'custom-mentor-img', label: 'AI Mentor – vlastní ilustrace' }
   ];
   const [quizAiLoadingId, setQuizAiLoadingId] = useState(null);
@@ -1284,17 +1293,25 @@ Prosím o:
   };
 
   // Filtrované otázky kvízu
-  const baseQuestions =
+  // Okruhy § 6: v ostrém testu (exam) jen ověřené otázky, návrh/sporné jen v tréninku (cvičný režim)
+  const p6Pool = P6_QUESTIONS.filter((q) => p6Cat === 'all' || q.cat === p6Cat);
+  const p6Hidden = quizMode === 'exam' ? p6Pool.filter((q) => q.overeni.stav !== 'overeno').length : 0;
+  const baseQuestions: any[] =
     quizFilter === 'artifact'
       ? QUIZ_QUESTIONS.filter((q) => q.fromArtifact)
+      : quizFilter === 'p6'
+      ? quizMode === 'exam'
+        ? p6Pool.filter((q) => q.overeni.stav === 'overeno')
+        : p6Pool
       : QUIZ_QUESTIONS;
   const activeQuestions = wrongOnly
     ? baseQuestions.filter((q) => userAnswers[q.id] !== undefined && userAnswers[q.id] !== q.correctIndex)
     : baseQuestions;
 
-  const currentQuestion = activeQuestions[currentQuestionIdx] || activeQuestions[0];
+  const currentQuestion: any = activeQuestions[currentQuestionIdx] || activeQuestions[0] || null;
 
   const handleSelectQuizOption = (optionIdx) => {
+    if (!currentQuestion) return;
     if (quizMode === 'mentor' && userAnswers[currentQuestion.id] !== undefined) {
       return; // V tréninkovém režimu už odpověděl
     }
@@ -1315,7 +1332,7 @@ Prosím o:
   // Výpočet skóre
   const answeredCount = activeQuestions.filter((q) => userAnswers[q.id] !== undefined).length;
   const correctCount = activeQuestions.filter((q) => userAnswers[q.id] === q.correctIndex).length;
-  const scorePercent = Math.round((correctCount / activeQuestions.length) * 100);
+  const scorePercent = activeQuestions.length ? Math.round((correctCount / activeQuestions.length) * 100) : 0;
   const passedExam = scorePercent >= 80;
 
   // Volání Gemini API pro AI Mentora (Mistra Karla)
@@ -2574,11 +2591,64 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                   >
                     10 otázek z vašeho testu
                   </button>
+                  <button
+                    onClick={() => resetQuiz(quizMode, 'p6')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      quizFilter === 'p6'
+                        ? 'bg-slate-800 text-amber-400 border border-amber-500/30'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Okruhy § 6 ({P6_QUESTIONS.length})
+                  </button>
                 </div>
               </div>
             </div>
 
-            {quizFinished ? (
+            {quizFilter === 'p6' && (
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">Okruh:</span>
+                  {[{ cat: 'all', label: 'Všechny okruhy' }, ...OKRUHY].map((o) => {
+                    const n = P6_QUESTIONS.filter((q) => o.cat === 'all' || q.cat === o.cat).length;
+                    return (
+                      <button
+                        key={o.cat}
+                        onClick={() => { setP6Cat(o.cat); setWrongOnly(false); resetQuiz(quizMode, 'p6'); }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                          p6Cat === o.cat
+                            ? 'bg-amber-500 text-slate-950 border-amber-400'
+                            : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        {o.label} ({n})
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  {quizMode === 'exam'
+                    ? `Zkouška nanečisto obsahuje jen ověřené otázky (${baseQuestions.length}).${p6Hidden ? ` ${p6Hidden} neověřených (návrh / k ověření v ČSN) najdete v režimu Trénink s Mentorem.` : ''}`
+                    : 'Cvičný režim: obsahuje i otázky ve stavu „Návrh – neověřeno“ a „k ověření v ČSN“ (označené štítkem). Zdroj: banka Příprava § 6 (NeuroQuest).'}
+                </p>
+              </div>
+            )}
+
+            {activeQuestions.length === 0 ? (
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center space-y-3">
+                <p className="text-sm text-slate-300">
+                  {wrongOnly
+                    ? 'Žádné špatně zodpovězené otázky k opakování.'
+                    : 'V tomto výběru zatím nejsou žádné ověřené otázky pro zkoušku nanečisto. Zkuste Trénink s Mentorem nebo jiný okruh.'}
+                </p>
+                <button
+                  onClick={() => { setWrongOnly(false); resetQuiz('mentor', quizFilter); }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition"
+                >
+                  Přepnout na Trénink s Mentorem
+                </button>
+              </div>
+            ) : quizFinished ? (
               /* Vyhodnocení kvízu */
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-6">
                 <div className="text-center space-y-3 border-b border-slate-800 pb-6">
@@ -2695,6 +2765,29 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                         <div className="text-xs text-emerald-300 font-semibold">
                           Správná odpověď: {q.options[q.correctIndex]}
                         </div>
+                        {q.isP6 ? (
+                          <div className="text-xs bg-slate-950/70 p-3 rounded-lg border border-slate-800 space-y-1.5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="text-slate-200">
+                                <strong>Vysvětlení:</strong> {q.explanation}
+                              </div>
+                              <TtsButton
+                                id={`quiz-summary-expl-${q.id}`}
+                                text={`${q.question} Správná odpověď: ${q.options[q.correctIndex]}. ${q.explanation}`}
+                              />
+                            </div>
+                            {q.analogie?.text && (
+                              <div className="flex items-start justify-between gap-3 text-amber-200/90">
+                                <div><strong>Analogie Mistra Karla:</strong> {q.analogie.text}</div>
+                                <TtsButton id={`quiz-summary-analogy-${q.id}`} text={q.analogie.text} label="Přečíst analogii" />
+                              </div>
+                            )}
+                            <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded-full border ${stavBadgeClass(q.overeni.stav)}`}>{STAV_LABEL[q.overeni.stav]}</span>
+                              <span>Zdroj: {q.ruleReference}</span>
+                            </div>
+                          </div>
+                        ) : (
                         <div className="text-xs text-amber-200/90 bg-slate-950/70 p-3 rounded-lg border border-slate-800 flex items-start justify-between gap-3">
                           <div>
                             <strong>Mistr Karel:</strong> {q.mentorAnalogy} ({q.ruleReference})
@@ -2704,6 +2797,7 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                             text={`${q.question} Správná odpověď: ${q.options[q.correctIndex]}. Vysvětlení Mistra Karla: ${q.mentorAnalogy}`}
                           />
                         </div>
+                        )}
                       </div>
                     );
                   })}
@@ -2739,6 +2833,19 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                     <span className="inline-block text-[11px] px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 font-medium">
                       Otázka z vašeho původního testu
                     </span>
+                  )}
+                  {currentQuestion.isP6 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-block text-[11px] px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 font-medium">
+                        Okruh § 6: {currentQuestion.okruhLabel}
+                      </span>
+                      <span
+                        className={`inline-block text-[11px] px-2.5 py-0.5 rounded-full border font-semibold ${stavBadgeClass(currentQuestion.overeni.stav)}`}
+                        title={currentQuestion.overeni.poznamka || ''}
+                      >
+                        {currentQuestion.overeni.stav === 'sporne' ? '⚠️ ' : ''}{STAV_LABEL[currentQuestion.overeni.stav]}
+                      </span>
+                    </div>
                   )}
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="text-lg md:text-xl font-bold text-white leading-snug">
@@ -2812,7 +2919,72 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
                 </div>
 
                 {/* Okamžitá zpětná vazba Mentora v tréninkovém režimu */}
-                {quizMode === 'mentor' &&
+                {quizMode === 'mentor' && currentQuestion.isP6 &&
+                  userAnswers[currentQuestion.id] !== undefined && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 space-y-3 animate-fadeIn">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                            <BookOpen className="w-4 h-4 text-amber-400" />
+                            Vysvětlení:
+                          </span>
+                          <TtsButton
+                            id={`quiz-expl-${currentQuestion.id}`}
+                            text={currentQuestion.explanation}
+                            label="Přečíst vysvětlení"
+                          />
+                        </div>
+                        <p className="text-sm text-slate-200 leading-relaxed">{currentQuestion.explanation}</p>
+                      </div>
+                      {currentQuestion.analogie?.text && (
+                        <div className="space-y-1.5 border-t border-amber-500/20 pt-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                              <Lightbulb className="w-4 h-4 text-amber-400" />
+                              Analogie Mistra Karla:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => (ttsMode === 'system' ? playSystemTts(`quiz-analogy-${currentQuestion.id}`, currentQuestion.analogie.text) : playTts(`quiz-analogy-${currentQuestion.id}`, currentQuestion.analogie.text, e))}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-amber-500/20 text-amber-300 border border-slate-700 hover:border-amber-500/40 text-xs font-semibold transition"
+                              title="Přečíst analogii nahlas"
+                            >
+                              {ttsPlayingId === `quiz-analogy-${currentQuestion.id}` ? <Square className="w-3.5 h-3.5 fill-current" /> : <Volume2 className="w-3.5 h-3.5" />}
+                              {ttsPlayingId === `quiz-analogy-${currentQuestion.id}` ? 'Zastavit' : '🔊 Přečíst analogii'}
+                            </button>
+                          </div>
+                          <p className="text-sm text-amber-100/90 leading-relaxed italic">„{currentQuestion.analogie.text}“</p>
+                        </div>
+                      )}
+                      <div className="border-t border-amber-500/20 pt-3 text-[11px] text-slate-400 space-y-1">
+                        <div>
+                          <strong className="text-slate-300">Zdroj:</strong>{' '}
+                          {currentQuestion.zdroj?.predpis ? (
+                            <>
+                              {currentQuestion.ruleReference}
+                              {currentQuestion.zdroj.url && (
+                                <>
+                                  {' · '}
+                                  <a href={currentQuestion.zdroj.url} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 underline">
+                                    odkaz
+                                  </a>
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            'zatím neuveden'
+                          )}
+                        </div>
+                        <div>
+                          <span className={`inline-block px-2 py-0.5 rounded-full border mr-1.5 ${stavBadgeClass(currentQuestion.overeni.stav)}`}>
+                            {STAV_LABEL[currentQuestion.overeni.stav]}
+                          </span>
+                          {currentQuestion.overeni.poznamka}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                {quizMode === 'mentor' && !currentQuestion.isP6 &&
                   userAnswers[currentQuestion.id] !== undefined && (
                     <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 space-y-2 animate-fadeIn">
                       <div className="flex items-center justify-between gap-2">

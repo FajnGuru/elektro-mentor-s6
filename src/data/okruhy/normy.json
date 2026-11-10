@@ -1,0 +1,136 @@
+[
+  {
+    "id": "p6-0e82aed9",
+    "cat": "normy",
+    "categoryName": "ČSN Normy & Rozvodné sítě",
+    "question": "Jak je definována rozvodná síť typu TN-C?",
+    "options": [
+      "Funkce ochranného (PE) a středního (N) vodiče je sloučena (PEN)",
+      "Ochranný vodič PE a střední vodič N jsou odděleny",
+      "Zdroj je kompletně izolován od země",
+      "Nulový vodič N se nepoužívá"
+    ],
+    "correct": 0,
+    "explanation": "V síti TN-C plní vodič PEN kombinovanou funkci (ochrannou i střední).",
+    "analogie": null,
+    "zdroj": null,
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-e656c9d0",
+    "cat": "normy",
+    "categoryName": "ČSN Normy & Rozvodné sítě",
+    "question": "Jak se v ČR označuje izolovaný vodič PEN?",
+    "options": [
+      "Barevnou kombinací zelená/žlutá po celé délce a navíc modrým označením na koncích",
+      "Modrou barvou po celé délce a zelenožlutým označením na koncích",
+      "Pouze modrou barvou po celé délce",
+      "Hnědou barvou s modrým označením na koncích"
+    ],
+    "correct": 0,
+    "explanation": "Izolovaný vodič PEN se značí zelenožlutě po celé délce a navíc modře na koncích. Norma ČSN EN 60445 sice uvádí i variantu modrá po celé délce se zelenožlutými konci, ale podle národní přílohy ZB k ČSN 33 2000-5-51 se v ČR nepoužívá. Kombinace zelená/žlutá je vyhrazena vodičům s ochrannou funkcí a nesmí se použít k jinému účelu.",
+    "analogie": {
+      "autor": "Mistr Karel",
+      "text": "PEN je ochránce v zelenožlutém dresu, který dělá i práci nulového vodiče. Proto má na koncích ještě modrou pásku, aby každý v rozvaděči hned viděl, že to není obyčejné PE."
+    },
+    "zdroj": {
+      "predpis": "ČSN 33 2000-5-51 (národní příloha ZB); ČSN EN 60445 ed. 4:2011",
+      "clanek": "NP ZB (článek v ČSN EN 60445 neověřen)",
+      "url": "https://elektrika.cz/data/clanky/oznacovani-vodicu-vlivy-a-csn-33-2000-5-51-ed.2/view"
+    },
+    "overeni": {
+      "stav": "sporne",
+      "kdo": "Guru Lektor + Guru App",
+      "datum": "2026-11-10",
+      "poznamka": "K ověření v ČSN: pravidlo potvrzují 3 sekundární zdroje, ale článek elektrika.cz popisuje ed. 2 normy 5-51. Ověřit platnost přílohy ZB v aktuální edici a značení PEL/PEM."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-5c89af03",
+    "cat": "normy",
+    "categoryName": "ČSN Normy & Rozvodné sítě",
+    "question": "Jaký jmenovitý reziduální proud nesmí překročit proudový chránič (RCD) pro doplňkovou ochranu AC zásuvek do 32 A pro obecné použití, které mohou užívat laici (ČSN 33 2000-4-41 ed. 3)?",
+    "options": [
+      "30 mA",
+      "100 mA",
+      "300 mA",
+      "500 mA"
+    ],
+    "correct": 0,
+    "explanation": "Podle ČSN 33 2000-4-41 ed. 3, čl. 411.3.3, musí být doplňková ochrana proudovým chráničem s jmenovitým reziduálním pracovním proudem nepřekračujícím 30 mA zajištěna pro AC zásuvky do 32 A, které mohou užívat laici a jsou určeny pro obecné použití, a pro AC mobilní zařízení pro venkovní použití do 32 A. Zásuvkami pro obecné použití nejsou zásuvky používané pod dohledem znalé nebo poučené osoby a zvláštní zásuvky pro zařízení, jehož nežádoucí vypnutí by mohlo způsobit značné škody.",
+    "analogie": {
+      "autor": "Mistr Karel",
+      "text": "Chránič u zásuvky je hlídač pro toho, kdo o elektřině nic neví. Hlídá rozdíl proudů a při úniku přes člověka obvod odpojí dřív, než ublíží."
+    },
+    "zdroj": {
+      "predpis": "ČSN 33 2000-4-41 ed. 3:2018",
+      "clanek": "čl. 411.3.3 (+ poznámka)",
+      "url": "https://www.oez.cz/newsletter/2019-06-proudove-chranice-prehled-a-pouziti-i"
+    },
+    "overeni": {
+      "stav": "overeno",
+      "kdo": "Guru Lektor + Guru App",
+      "datum": "2026-11-10",
+      "poznamka": "Ověřeno ze shodných sekundárních zdrojů (OEZ, ElektroPrůmysl.cz, časopis Elektro 2021/05, Eaton), ne z plného textu ČSN. Přesné znění poznámky doporučeno ručně zkontrolovat v ČSN."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-5d652207",
+    "cat": "normy",
+    "categoryName": "ČSN Normy & Rozvodné sítě",
+    "question": "Co vyjadřuje první číslice v kódu stupně krytí IP (např. IP 44)?",
+    "options": [
+      "Stupeň ochrany před dotykem a vniknutím pevných těles",
+      "Stupeň ochrany před vodou",
+      "Odolnost proti mechanickým nárazům",
+      "Maximální provozní teplotu"
+    ],
+    "correct": 0,
+    "explanation": "První číslice IP udává ochranu před pevnými tělesy a nebezpečným dotykem.",
+    "analogie": null,
+    "zdroj": null,
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-5b492f49",
+    "cat": "normy",
+    "categoryName": "ČSN Normy & Rozvodné sítě",
+    "question": "Která třída ochrany využívá ochranu dvojitou izolací (značka dvou čtverců)?",
+    "options": [
+      "Třída ochrany II",
+      "Třída ochrany I",
+      "Třída ochrany III",
+      "Třída ochrany 0"
+    ],
+    "correct": 0,
+    "explanation": "Třída II spoléhá na dvojitou nebo zesílenou izolaci bez uzemnění.",
+    "analogie": null,
+    "zdroj": null,
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  }
+]

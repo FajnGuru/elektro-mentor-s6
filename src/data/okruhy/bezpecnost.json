@@ -1,0 +1,98 @@
+[
+  {
+    "id": "p6-f13c1c6c",
+    "cat": "bezpecnost",
+    "categoryName": "Bezpečnost & První pomoc",
+    "question": "Jaké je první bezpečnostní pravidlo před zahájením prací bez napětí?",
+    "options": [
+      "Úplné odpojení od zdrojů napětí",
+      "Zajištění proti zapnutí",
+      "Ověření beznapěťového stavu",
+      "Uzemnění a zkratování"
+    ],
+    "correct": 0,
+    "explanation": "Pravidlo 1 z 5: Úplně odpojit od napětí.",
+    "analogie": null,
+    "zdroj": null,
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-1c8bec6a",
+    "cat": "bezpecnost",
+    "categoryName": "Bezpečnost & První pomoc",
+    "question": "Jak musíte spolehlivě ověřit beznapěťový stav?",
+    "options": [
+      "Dvoupólovou zkoušečkou s ověřením její funkčnosti",
+      "Pouhým pohledem na jistič",
+      "Fázovou zkoušečkou",
+      "Zkouškou jiskřením"
+    ],
+    "correct": 0,
+    "explanation": "Beznapěťový stav se ověřuje spolehlivou dvoupólovou zkoušečkou.",
+    "analogie": null,
+    "zdroj": null,
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-dc34b8b7",
+    "cat": "bezpecnost",
+    "categoryName": "Bezpečnost & První pomoc",
+    "question": "První povinnost při zásahu osoby elektrickým proudem (NN)?",
+    "options": [
+      "Přerušit obvod (vypnout proud) nebo bezpečně vyprostit",
+      "Uchopit postiženého za ruce",
+      "Ihned zahájit resuscitaci bez ohledu na napětí",
+      "Běžet pro hasičák"
+    ],
+    "correct": 0,
+    "explanation": "Bezpečnost zachránce je prvořadá. Nejprve odpojit od zdroje.",
+    "analogie": null,
+    "zdroj": null,
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  },
+  {
+    "id": "p6-237cf489",
+    "cat": "bezpecnost",
+    "categoryName": "Bezpečnost & První pomoc",
+    "question": "Poměr KPR (dospělý)?",
+    "options": [
+      "30 stlačení : 2 vdechy",
+      "15 stlačení : 5 vdechů",
+      "50 stlačení : 1 vdech",
+      "Jen vdechy"
+    ],
+    "correct": 0,
+    "explanation": "Standard pro resuscitaci dospělých je 30:2.",
+    "analogie": null,
+    "zdroj": null,
+    "overeni": {
+      "stav": "navrh",
+      "kdo": null,
+      "datum": "2026-11-10",
+      "poznamka": "Převzato z exportu „Příprava § 6“ (NeuroQuest), obsah zatím neověřen proti předpisu."
+    },
+    "obtiznost": null,
+    "puvod": "neuroquest:priprava-6"
+  }
+]
