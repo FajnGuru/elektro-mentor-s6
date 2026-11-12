@@ -39,6 +39,7 @@ import {
   Link2
 } from 'lucide-react';
 import { cleanTtsText } from './lib/ttsText';
+import { aiGenerate, aiImage, aiTtsChunk, splitForTts, isFinalError, aiAvailable } from './lib/gemini';
 import { P6_QUESTIONS, OKRUHY, STAV_LABEL } from './lib/okruhy';
 import {
   loadAllImages, putImage, deleteImage, requestPersist, storageEstimate,
@@ -581,7 +582,7 @@ export default function App() {
   const ttsCacheRef = React.useRef({});
   const utteranceRef = React.useRef(null);
 
-  // Stav pro AI generování obrázků (gemini-3.1-flash-image) a hlubší AI rozbor v kvízu
+  // Stav pro AI generování obrázků (Gemini přes /api/gemini, model vybírá server) a hlubší AI rozbor v kvízu
   const [generatedImages, setGeneratedImages] = useState({});
   const [imageLoadingId, setImageLoadingId] = useState(null);
   const [imageError, setImageError] = useState(null);
@@ -1005,72 +1006,44 @@ export default function App() {
 
     setTtsLoadingId(id);
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
-
-    const payload = {
-      contents: [
-        {
-          parts: [
-            {
-              text: `Přečti v češtině klidným, přátelským a srozumitelným hlasem zkušeného mentora tento odstavec: ${textToRead}`
-            }
-          ]
-        }
-      ],
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Orus' }
-          }
-        }
-      },
-      model: 'gemini-2.5-flash-preview-tts'
-    };
-
+    // Gemini TTS přes serverovou funkci /api/gemini/tts (klíč i výběr modelu jsou na serveru).
+    const chunks = splitForTts(textToRead);
     const delays = [1000, 2000, 4000];
+    let ttsFailMsg = 'Předčítání se momentálně nepodařilo načíst. Zkuste to prosím znovu.';
 
     for (let attempt = 0; attempt <= delays.length; attempt++) {
       try {
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+        const parts: Int16Array[] = [];
+        let sampleRate = 24000;
+        for (const chunk of chunks) {
+          const r = await aiTtsChunk(chunk);
+          parts.push(r.pcm);
+          sampleRate = r.sampleRate;
         }
+        const total = parts.reduce((n, p) => n + p.length, 0);
+        if (!total) throw new Error('Neplatná audio odpověď');
+        const pcm16 = new Int16Array(total);
+        let off = 0;
+        for (const p of parts) { pcm16.set(p, off); off += p.length; }
+        const wavBlob = pcmToWav(pcm16, sampleRate);
+        const audioUrl = URL.createObjectURL(wavBlob);
 
-        const result = await response.json();
-        const part = result?.candidates?.[0]?.content?.parts?.[0];
-        const audioData = part?.inlineData?.data;
-        const mimeType = part?.inlineData?.mimeType;
+        ttsCacheRef.current[cacheKey] = audioUrl;
 
-        if (audioData && mimeType && mimeType.startsWith('audio/')) {
-          const rateMatch = mimeType.match(/rate=(\d+)/);
-          const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
-          const pcmData = base64ToArrayBuffer(audioData);
-          const pcm16 = new Int16Array(pcmData);
-          const wavBlob = pcmToWav(pcm16, sampleRate);
-          const audioUrl = URL.createObjectURL(wavBlob);
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+        setTtsLoadingId(null);
+        setTtsPlayingId(id);
 
-          ttsCacheRef.current[cacheKey] = audioUrl;
-
-          const audio = new Audio(audioUrl);
-          audioRef.current = audio;
-          setTtsLoadingId(null);
-          setTtsPlayingId(id);
-
-          audio.onended = () => setTtsPlayingId(null);
-          audio.onerror = () => setTtsPlayingId(null);
-          await audio.play();
-          return;
-        } else {
-          throw new Error('Neplatná audio odpověď');
-        }
+        audio.onended = () => setTtsPlayingId(null);
+        audio.onerror = () => setTtsPlayingId(null);
+        await audio.play();
+        return;
       } catch (err) {
+        if (isFinalError(err)) {
+          ttsFailMsg = `Gemini hlas není dostupný: ${(err as any)?.message || err}. Přepni na systémový hlas.`;
+          break;
+        }
         if (attempt < delays.length) {
           await new Promise((r) => setTimeout(r, delays[attempt]));
         }
@@ -1079,13 +1052,13 @@ export default function App() {
 
     setTtsLoadingId(null);
     setTtsPlayingId(null);
-    setTtsError('Předčítání se momentálně nepodařilo načíst. Zkuste to prosím znovu.');
+    setTtsError(ttsFailMsg);
   };
 
-  // Funkce pro generování výukového obrázku / infografiky přes Gemini 3.1 Flash Image
+  // Funkce pro generování výukového obrázku / infografiky přes Gemini (serverová funkce)
   const generateVisualAid = async (id, title, analogyText, officialContext, mode = 'analogy') => {
     if (imageLoadingId) return;
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    if (!aiAvailable()) {
       setImageError('Jsi offline – AI obrázek teď nelze vygenerovat. Ve Složce ilustrací můžeš importovat a přiřadit vlastní obrázek.');
       return;
     }
@@ -1097,38 +1070,13 @@ export default function App() {
         ? `Vytvoř přehledné, moderní výukové technické schéma a infografiku pro elektrikáře (zkouška § 6 NV č. 194/2022 Sb.) na téma: "${title}". Technický kontext: ${officialContext}. Použij jasné vizuální prvky, elektro symboly, barevné rozlišení a stručné české popisky.`
         : `Vytvoř názornou, zapamatovatelnou výukovou ilustraci (rozdělenou na 2 části: vlevo životní analogie, vpravo reálná elektrotechnická praxe) na téma: "${title}". Analogie Mistra Karla: ${analogyText}. Odborný kontext: ${officialContext}. Styl: čistá moderní edukační infografika s krátkými českými popisky pro snadné vizuální zapamatování u zkoušky.`;
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-    const imageApiKey = import.meta.env.VITE_GEMINI_IMAGE_API_KEY || apiKey;
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${imageApiKey}`;
-
-    const payload = {
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: styleInstruction }]
-        }
-      ],
-      generationConfig: {
-        responseModalities: ['IMAGE'],
-        imageConfig: { aspectRatio: '16:9' }
-      }
-    };
-
+    // Generování přes serverovou funkci /api/gemini/image (model se vybírá dynamicky na serveru).
+    let imgFailMsg = 'Generování obrázku se momentálně nezdařilo. Zkuste to prosím znovu.';
     const delays = [1000, 2000, 4000];
     for (let attempt = 0; attempt <= delays.length; attempt++) {
       try {
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const result = await response.json();
-        const part = result?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+        const img = await aiImage(styleInstruction, '16:9');
+        const part = img?.data ? { inlineData: { data: img.data, mimeType: img.mimeType } } : null;
 
         if (part && part.inlineData?.data) {
           const mimeType = part.inlineData.mimeType || 'image/png';
@@ -1150,6 +1098,7 @@ export default function App() {
           throw new Error('Obrázek nebyl v odpovědi nalezen.');
         }
       } catch (err) {
+        if (isFinalError(err)) { imgFailMsg = `AI obrázek není dostupný: ${(err as any)?.message || err}`; break; }
         if (attempt < delays.length) {
           await new Promise((r) => setTimeout(r, delays[attempt]));
         }
@@ -1157,7 +1106,7 @@ export default function App() {
     }
 
     setImageLoadingId(null);
-    setImageError('Generování obrázku se momentálně nezdařilo. Zkuste to prosím znovu.');
+    setImageError(imgFailMsg);
   };
 
   // Funkce pro hlubší AI vysvětlení konkrétní kvízové otázky
@@ -1180,25 +1129,10 @@ Prosím o:
 
     const systemInstruction = `Jsi Mistr Karel, přátelský mentor pro zkoušky elektrotechniků (§ 6 NV č. 194/2022 Sb.). Odpovídej věcně, barvitě, pomocí praxe a analogií, v krátkých přehledných odstavcích.`;
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-    const payload = {
-      contents: [{ parts: [{ text: prompt }] }],
-      systemInstruction: { parts: [{ text: systemInstruction }] }
-    };
-
     const delays = [1000, 2000, 4000];
     for (let attempt = 0; attempt <= delays.length; attempt++) {
       try {
-        const res = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = await aiGenerate(prompt, systemInstruction);
         if (text) {
           setQuizAiExplanations((prev) => ({
             ...prev,
@@ -1208,6 +1142,10 @@ Prosím o:
           return;
         }
       } catch (e) {
+        if (isFinalError(e)) {
+          setQuizAiExplanations((prev) => ({ ...prev, [questionObj.id]: `⚠️ AI rozbor není dostupný: ${(e as any)?.message || e}` }));
+          break;
+        }
         if (attempt < delays.length) {
           await new Promise((r) => setTimeout(r, delays[attempt]));
         }
@@ -1350,31 +1288,12 @@ Tvým úkolem je vysvětlit jakýkoliv dotaz, pojem z příručky nebo zhodnotit
 3. Na závěr přidej "Tip Mistra Karla ke zkoušce" – na jaký chyták si dát v testu nebo u ústní zkoušky pozor.
 Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-    const payload = {
-      contents: [{ parts: [{ text: queryText }] }],
-      systemInstruction: { parts: [{ text: systemInstruction }] }
-    };
-
     const delays = [1000, 2000, 4000];
     let lastError = null;
 
     for (let attempt = 0; attempt <= delays.length; attempt++) {
       try {
-        const res = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-          throw new Error(`HTTP error ${res.status}`);
-        }
-
-        const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = await aiGenerate(queryText, systemInstruction);
         if (text) {
           setAiResponse(text);
           setAiLoading(false);
@@ -1384,6 +1303,7 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
         }
       } catch (err) {
         lastError = err;
+        if (isFinalError(err)) break;
         if (attempt < delays.length) {
           await new Promise((r) => setTimeout(r, delays[attempt]));
         }
@@ -1391,7 +1311,9 @@ Odpovídej česky, přátelsky, přehledně a strukturovaně.`;
     }
 
     setAiError(
-      'Nepodařilo se spojit s AI Mentorem. Zkuste to prosím za malou chvíli znovu.'
+      lastError && isFinalError(lastError)
+        ? `AI Mentor není dostupný: ${(lastError as any)?.message || lastError}`
+        : 'Nepodařilo se spojit s AI Mentorem. Zkuste to prosím za malou chvíli znovu.'
     );
     setAiLoading(false);
   };
